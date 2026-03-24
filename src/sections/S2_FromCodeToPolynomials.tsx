@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Section } from '../components/Section';
 import { Math as InlineMath, MathBlock } from '../components/MathBlock';
+import { Slider } from '../components/ui/Slider';
 import { StepNavigator } from '../components/ui/StepNavigator';
+import { mod } from '../utils/field';
+import { evaluateAll } from '../utils/polynomial';
+import type { Poly } from '../utils/polynomial';
+import { generateDomain } from '../utils/reedsolomon';
 
 // A leanVM program (Example 2.1): assert x < 10, compute z = x*y + 100, assert z < 1000
 const PROGRAM_CODE = `function checked_mul_add(x, y):
@@ -51,6 +56,18 @@ const CONSTRAINT_STEPS = [
 export function S2_FromCodeToPolynomials() {
   const [step, setStep] = useState(0);
   const [highlightedRow, setHighlightedRow] = useState<number | null>(null);
+
+  // Polynomial Explorer state
+  const [a0, setA0] = useState(3);
+  const [a1, setA1] = useState(5);
+  const [a2, setA2] = useState(2);
+  const domain = useMemo(() => generateDomain(8), []);
+  const poly: Poly = useMemo(() => [mod(a0), mod(a1), mod(a2)], [a0, a1, a2]);
+  const evals = useMemo(() => evaluateAll(poly, domain), [poly, domain]);
+  const plotW = 600, plotH = 200, padL = 50, padR = 20, padT = 20, padB = 30;
+  const chartW = plotW - padL - padR, chartH = plotH - padT - padB;
+  const xScale = (i: number) => padL + (i / (domain.length - 1)) * chartW;
+  const yScale = (v: number) => padT + chartH - (v / 16) * chartH;
 
   return (
     <Section
@@ -377,6 +394,73 @@ export function S2_FromCodeToPolynomials() {
           </div>
         </motion.div>
       </AnimatePresence>
+
+      {/* Interactive: Polynomial Explorer */}
+      <h3 id="polynomial-explorer" className="font-heading text-xl font-semibold text-text mt-10 mb-4">
+        Polynomial Explorer
+      </h3>
+      <p className="mb-4">
+        Try it yourself: adjust the coefficients below to define a degree-2 polynomial{' '}
+        <InlineMath tex="f(x) = a_0 + a_1 x + a_2 x^2" /> in{' '}
+        <InlineMath tex="\mathbb{F}_{17}" /> and see its evaluations over an 8-point domain.
+        In leanVM, the same idea applies to polynomials with millions of evaluations over the
+        KoalaBear field — here we keep it small so you can see every number.
+      </p>
+
+      <div className="bg-bg-card border border-border rounded-lg p-5 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Slider label="a&#x2080;" value={a0} min={0} max={16} onChange={setA0} displayValue={`${a0}`} />
+          <Slider label="a&#x2081;" value={a1} min={0} max={16} onChange={setA1} displayValue={`${a1}`} />
+          <Slider label="a&#x2082;" value={a2} min={0} max={16} onChange={setA2} displayValue={`${a2}`} />
+        </div>
+
+        <div className="text-center text-sm text-text-muted">
+          <InlineMath tex={`f(x) = ${a0} + ${a1}x + ${a2}x^2 \\pmod{17}`} />
+        </div>
+
+        <div className="overflow-x-auto">
+          <svg viewBox={`0 0 ${plotW} ${plotH}`} className="w-full max-w-[600px] mx-auto">
+            <line x1={padL} y1={padT + chartH} x2={padL + chartW} y2={padT + chartH} stroke="#e0dcd4" strokeWidth={1} />
+            <line x1={padL} y1={padT} x2={padL} y2={padT + chartH} stroke="#e0dcd4" strokeWidth={1} />
+            {[0, 4, 8, 12, 16].map((v) => (
+              <text key={v} x={padL - 8} y={yScale(v) + 4} textAnchor="end" className="text-[10px]" fill="#6b6375">{v}</text>
+            ))}
+            {domain.map((_, i) => {
+              if (i === domain.length - 1) return null;
+              return (
+                <line key={`line-${i}`} x1={xScale(i)} y1={yScale(evals[i])} x2={xScale(i + 1)} y2={yScale(evals[i + 1])} stroke="#8b4513" strokeWidth={1.5} strokeOpacity={0.4} />
+              );
+            })}
+            {domain.map((d, i) => (
+              <g key={`dot-${i}`}>
+                <motion.circle cx={xScale(i)} cy={yScale(evals[i])} r={5} fill="#8b4513" initial={false} animate={{ cy: yScale(evals[i]) }} transition={{ type: 'spring', stiffness: 300, damping: 25 }} />
+                <text x={xScale(i)} y={padT + chartH + 16} textAnchor="middle" className="text-[10px]" fill="#6b6375">{d}</text>
+              </g>
+            ))}
+          </svg>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-center border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="py-2 px-3 text-text-muted font-medium">Domain point <InlineMath tex="x" /></th>
+                {domain.map((d, i) => (<th key={i} className="py-2 px-2 font-mono text-text">{d}</th>))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-2 px-3 text-text-muted font-medium"><InlineMath tex="f(x)" /></td>
+                {evals.map((v, i) => (
+                  <td key={i} className="py-2 px-2 font-mono text-sienna font-semibold">
+                    <motion.span key={v} initial={{ scale: 1.2, color: '#c53030' }} animate={{ scale: 1, color: '#8b4513' }} transition={{ duration: 0.3 }}>{v}</motion.span>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Summary */}
       <div className="bg-bg-card border border-border rounded-lg p-5 mt-8">

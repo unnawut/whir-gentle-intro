@@ -28,6 +28,7 @@ export const SECTIONS = [
       { label: 'Columns Become Polynomials', id: 'columns-become-polynomials' },
       { label: 'Constraints Become Polynomial Identities', id: 'constraints-become-identities' },
       { label: 'The Big Picture', id: 'big-picture' },
+      { label: 'Polynomial Explorer', id: 'polynomial-explorer' },
     ],
   },
   {
@@ -37,8 +38,6 @@ export const SECTIONS = [
       { label: 'What Are Reed-Solomon Codes?', id: 'what-are-rs-codes' },
       { label: 'How Reed-Solomon Codes Work', id: 'polynomials-and-redundancy' },
       { label: 'Error Correction to Proofs', id: 'error-correction-to-proofs' },
-      { label: 'Polynomial Explorer', id: 'polynomial-explorer' },
-      { label: 'Hamming Distance', id: 'hamming-distance' },
       { label: 'Why Redundancy Matters', id: 'why-redundancy-matters' },
     ],
   },
