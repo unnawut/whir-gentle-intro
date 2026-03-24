@@ -53,7 +53,9 @@ export function S1_WhatProblem() {
       title="What Problem Does WHIR Solve?"
       subtitle="From computations to succinct proofs: where WHIR fits in the pipeline."
     >
-      {/* Intro */}
+      <h3 id="snargs-pipeline" className="font-heading text-xl font-semibold text-text mb-3">
+        SNARGs and the Pipeline
+      </h3>
       <p>
         Imagine a blockchain needs to verify thousands of digital signatures every block. Today,
         BLS signatures can be aggregated cheaply -- but BLS is not quantum-resistant. Post-quantum

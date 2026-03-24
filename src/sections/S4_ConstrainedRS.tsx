@@ -33,6 +33,9 @@ export function S4_ConstrainedRS() {
       title="Constrained Reed-Solomon Codes"
       subtitle="Low-degree polynomials with an extra constraint: a weighted sum must hit a target."
     >
+      <h3 id="what-are-crs-codes" className="font-heading text-xl font-semibold text-text mb-3">
+        What Are CRS Codes?
+      </h3>
       <p>
         Standard Reed-Solomon codes only require that a function is close to a low-degree
         polynomial. <strong>Constrained Reed-Solomon (CRS)</strong> codes add an additional

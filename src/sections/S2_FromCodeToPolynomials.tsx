@@ -52,6 +52,9 @@ export function S2_FromCodeToPolynomials() {
       title="From Code to Polynomials"
       subtitle="How a program's execution becomes polynomial equations that we can prove."
     >
+      <h3 id="arithmetization" className="font-heading text-xl font-semibold text-text mb-3">
+        Arithmetization
+      </h3>
       <p>
         Before we can use polynomial proximity testing (the thing WHIR does), we need to understand
         how a <em>computation</em> becomes <em>polynomials</em> in the first place. This is the

@@ -35,6 +35,9 @@ export function S8_RecursiveStructure() {
       title="The Full Protocol: Recursive Structure"
       subtitle="Repeated iterations shrink the problem exponentially until it is trivially small."
     >
+      <h3 id="full-protocol-overview" className="font-heading text-xl font-semibold text-text mb-3">
+        Overview
+      </h3>
       <p>
         The full WHIR protocol runs <InlineMath tex="M = \lceil m/k \rceil" /> iterations
         of the process described in Section 6. Each iteration reduces the number of variables

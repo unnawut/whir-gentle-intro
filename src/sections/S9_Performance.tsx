@@ -75,6 +75,9 @@ export function S9_Performance() {
       title="Why WHIR is Fast"
       subtitle="Concrete performance numbers and comparison with FRI, STIR, and BaseFold."
     >
+      <h3 id="why-fast-overview" className="font-heading text-xl font-semibold text-text mb-3">
+        Overview
+      </h3>
       <p>
         WHIR achieves the <strong>fastest verification time</strong> among comparable
         proximity testing protocols. Its key advantage is that the verifier's work is

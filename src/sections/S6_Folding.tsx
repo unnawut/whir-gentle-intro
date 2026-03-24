@@ -90,6 +90,9 @@ export function S6_Folding() {
       title="Folding"
       subtitle="Halving the domain with a random challenge -- the key to WHIR's recursion."
     >
+      <h3 id="what-is-folding" className="font-heading text-xl font-semibold text-text mb-3">
+        What Is Folding?
+      </h3>
       <p>
         <strong>Folding</strong> is the operation that makes WHIR recursive. Given evaluations
         of a function <InlineMath tex="f" /> on a domain <InlineMath tex="D" />, and a random

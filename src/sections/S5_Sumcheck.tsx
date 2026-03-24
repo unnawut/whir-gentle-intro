@@ -55,6 +55,9 @@ export function S5_Sumcheck() {
       title="The Sumcheck Protocol"
       subtitle="Reduce an exponential-size sum to a single evaluation, one variable at a time."
     >
+      <h3 id="how-sumcheck-works" className="font-heading text-xl font-semibold text-text mb-3">
+        How Sumcheck Works
+      </h3>
       <p>
         The <strong>sumcheck protocol</strong> is one of the most important building blocks
         in modern proof systems. It solves the following problem: the prover claims that the

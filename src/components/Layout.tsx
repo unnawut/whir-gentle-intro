@@ -5,6 +5,7 @@ export const SECTIONS = [
     id: 'problem',
     label: 'What Problem Does WHIR Solve?',
     subs: [
+      { label: 'SNARGs and the Pipeline', id: 'snargs-pipeline' },
       { label: 'The Prover-Verifier Model', id: 'prover-verifier-model' },
       { label: 'Why Does Fast Verification Matter?', id: 'why-fast-verification' },
       { label: 'The Road to WHIR', id: 'road-to-whir' },
@@ -14,6 +15,7 @@ export const SECTIONS = [
     id: 'code-to-polynomials',
     label: 'From Code to Polynomials',
     subs: [
+      { label: 'Arithmetization', id: 'arithmetization' },
       { label: 'Run the Program, Record Everything', id: 'run-the-program' },
       { label: 'Columns Become Polynomials', id: 'columns-become-polynomials' },
       { label: 'Constraints Become Polynomial Identities', id: 'constraints-become-identities' },
@@ -24,6 +26,7 @@ export const SECTIONS = [
     id: 'reed-solomon',
     label: 'Reed-Solomon Codes',
     subs: [
+      { label: 'What Are Reed-Solomon Codes?', id: 'what-are-rs-codes' },
       { label: 'Polynomial Explorer', id: 'polynomial-explorer' },
       { label: 'Hamming Distance', id: 'hamming-distance' },
     ],
@@ -32,6 +35,7 @@ export const SECTIONS = [
     id: 'constrained-rs',
     label: 'Constrained Reed-Solomon Codes',
     subs: [
+      { label: 'What Are CRS Codes?', id: 'what-are-crs-codes' },
       { label: 'Why Add a Constraint?', id: 'why-add-constraint' },
       { label: 'Interactive Example', id: 'crs-interactive-example' },
     ],
@@ -40,6 +44,7 @@ export const SECTIONS = [
     id: 'sumcheck',
     label: 'The Sumcheck Protocol',
     subs: [
+      { label: 'How Sumcheck Works', id: 'how-sumcheck-works' },
       { label: 'Step-by-Step Example', id: 'sumcheck-step-by-step' },
     ],
   },
@@ -47,6 +52,7 @@ export const SECTIONS = [
     id: 'folding',
     label: 'Folding',
     subs: [
+      { label: 'What Is Folding?', id: 'what-is-folding' },
       { label: 'Interactive Folding', id: 'interactive-folding' },
     ],
   },
@@ -59,6 +65,7 @@ export const SECTIONS = [
     id: 'full-protocol',
     label: 'The Full Protocol',
     subs: [
+      { label: 'Overview', id: 'full-protocol-overview' },
       { label: 'Funnel Visualization', id: 'funnel-visualization' },
       { label: 'The k Tradeoff', id: 'k-tradeoff' },
     ],
@@ -67,6 +74,7 @@ export const SECTIONS = [
     id: 'why-fast',
     label: 'Why WHIR is Fast',
     subs: [
+      { label: 'Overview', id: 'why-fast-overview' },
       { label: 'Benchmark Comparison', id: 'benchmark-comparison' },
       { label: 'Key Takeaways', id: 'key-takeaways' },
     ],

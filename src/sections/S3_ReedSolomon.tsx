@@ -61,6 +61,9 @@ export function S3_ReedSolomon() {
       title="Reed-Solomon Codes"
       subtitle="Low-degree polynomials give us redundancy, and redundancy lets us detect errors."
     >
+      <h3 id="what-are-rs-codes" className="font-heading text-xl font-semibold text-text mb-3">
+        What Are Reed-Solomon Codes?
+      </h3>
       <p>
         A <strong>Reed-Solomon code</strong> takes a polynomial and evaluates it at many more
         points than its degree requires. If the polynomial has degree{' '}
