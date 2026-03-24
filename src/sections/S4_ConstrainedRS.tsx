@@ -5,7 +5,7 @@ import { Math as InlineMath, MathBlock } from '../components/MathBlock';
 import { Slider } from '../components/ui/Slider';
 import { mod } from '../utils/field';
 
-export function S3_ConstrainedRS() {
+export function S4_ConstrainedRS() {
   // 4 values for f on {0,1}^2: f(0,0), f(0,1), f(1,0), f(1,1)
   const [f00, setF00] = useState(3);
   const [f01, setF01] = useState(5);
@@ -29,7 +29,7 @@ export function S3_ConstrainedRS() {
   return (
     <Section
       id="constrained-rs"
-      number={3}
+      number={4}
       title="Constrained Reed-Solomon Codes"
       subtitle="Low-degree polynomials with an extra constraint: a weighted sum must hit a target."
     >

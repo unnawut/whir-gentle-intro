@@ -6,7 +6,7 @@ import { Slider } from '../components/ui/Slider';
 
 const TOTAL_VARS = 8; // m = 8, so domain size = 2^8 = 256
 
-export function S7_RecursiveStructure() {
+export function S8_RecursiveStructure() {
   const [k, setK] = useState(2);
 
   const iterations = useMemo(() => {
@@ -31,7 +31,7 @@ export function S7_RecursiveStructure() {
   return (
     <Section
       id="full-protocol"
-      number={7}
+      number={8}
       title="The Full Protocol: Recursive Structure"
       subtitle="Repeated iterations shrink the problem exponentially until it is trivially small."
     >

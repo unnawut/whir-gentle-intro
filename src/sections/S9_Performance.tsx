@@ -51,7 +51,7 @@ const metricConfig: Record<
   },
 };
 
-export function S8_Performance() {
+export function S9_Performance() {
   const [securityBits, setSecurityBits] = useState<100 | 128>(100);
   const [activeMetric, setActiveMetric] = useState<Metric>('verifierTime');
 
@@ -71,7 +71,7 @@ export function S8_Performance() {
   return (
     <Section
       id="why-fast"
-      number={8}
+      number={9}
       title="Why WHIR is Fast"
       subtitle="Concrete performance numbers and comparison with FRI, STIR, and BaseFold."
     >

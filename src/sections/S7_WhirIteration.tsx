@@ -67,7 +67,7 @@ const stepLabels = [
   'Recursive Claim',
 ];
 
-export function S6_WhirIteration() {
+export function S7_WhirIteration() {
   const [step, setStep] = useState(0);
 
   const domain = useMemo(() => generateSubgroup(8), []);
@@ -111,7 +111,7 @@ export function S6_WhirIteration() {
   return (
     <Section
       id="one-iteration"
-      number={6}
+      number={7}
       title="One WHIR Iteration"
       subtitle="The core protocol: sumcheck, fold, sample, query, recurse."
     >

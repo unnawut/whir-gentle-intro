@@ -9,7 +9,7 @@ const stages = [
     label: 'Computation',
     color: '#1a365d',
     description:
-      'The starting point: a computation someone performed. For example, "I correctly executed this smart contract" or "I know a solution to this puzzle." The computation could be enormous -- millions of steps -- but the prover wants to convince someone it was done correctly without making them redo the entire thing.',
+      'The starting point: a computation someone performed. For example, "I verified 10,000 post-quantum signatures and they are all valid." The computation could be enormous -- millions of hash evaluations per signature, multiplied by thousands of signatures -- but the prover wants to convince everyone the result is correct without making them redo the entire thing.',
   },
   {
     id: 'piop',
@@ -55,10 +55,15 @@ export function S1_WhatProblem() {
     >
       {/* Intro */}
       <p>
-        Imagine you performed a long, expensive computation -- maybe executing a smart contract
-        or verifying a complex transaction. You want to convince someone else that the result is correct,
-        but you <em>don't</em> want them to redo the whole computation. This is the fundamental problem
-        that <strong>SNARGs</strong> solve.
+        Imagine a blockchain needs to verify thousands of digital signatures every block. Today,
+        BLS signatures can be aggregated cheaply -- but BLS is not quantum-resistant. Post-quantum
+        alternatives like hash-based signatures (XMSS, SPHINCS+) are secure, but each one is large
+        and expensive to verify on-chain. What if you could compress all those signature checks into
+        a single, tiny proof that any node verifies in under a millisecond?
+      </p>
+      <p className="mt-3">
+        This is the kind of problem that <strong>SNARGs</strong> solve -- and WHIR is a key building
+        block that makes the verifier exceptionally fast.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
@@ -239,29 +244,210 @@ export function S1_WhatProblem() {
         Why Does Fast Verification Matter?
       </h3>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
-        <div className="bg-bg-card border border-border rounded-lg p-5">
-          <div className="font-heading font-semibold text-base text-text mb-2">
-            Blockchain Verification
-          </div>
-          <p className="text-sm text-text-muted">
-            On Ethereum, every node must verify proofs. Each operation costs gas -- real money.
-            A verifier that reads less data and computes fewer operations translates directly
-            into lower gas costs. WHIR's verification uses only{' '}
-            <InlineMath tex="O(\lambda + \log n)" /> queries, which can save hundreds of
-            thousands of gas per proof.
-          </p>
+      <div className="bg-bg-card border border-border rounded-lg p-5 my-4">
+        <div className="font-heading font-semibold text-lg text-text mb-3">
+          Example: Post-Quantum Signature Aggregation
         </div>
-        <div className="bg-bg-card border border-border rounded-lg p-5">
-          <div className="font-heading font-semibold text-base text-text mb-2">
-            Recursive Proofs
+        <p className="text-sm text-text-muted mb-3">
+          Ethereum currently relies on BLS signatures for validator attestations. BLS allows cheap
+          aggregation -- thousands of signatures compress into one -- but BLS is broken by quantum
+          computers. The leading post-quantum alternatives are <strong>hash-based signatures</strong>{' '}
+          (XMSS, SPHINCS+), which are secure but have a problem:
+        </p>
+        <ul className="list-disc list-inside text-sm text-text-muted space-y-1 mb-4">
+          <li>Each signature is 1-40 KB (vs. 48 bytes for BLS)</li>
+          <li>Verification requires thousands of hash evaluations per signature</li>
+          <li>No native aggregation -- verifying <InlineMath tex="N" /> signatures costs <InlineMath tex="O(N)" /> work</li>
+        </ul>
+        <p className="text-sm text-text-muted mb-3">
+          A SNARG solves this: one prover checks all <InlineMath tex="N" /> signatures off-chain,
+          then produces a <strong>single compact proof</strong> (~60-100 KB) that every node verifies
+          in under a millisecond. The thousands of expensive hash-based signature checks are replaced
+          by one fast proof verification.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          <div className="flex-1 bg-bg border border-border-light rounded p-3">
+            <div className="text-xs font-semibold text-red mb-1">Without SNARG</div>
+            <p className="text-xs text-text-muted">
+              Every node verifies 10,000 hash-based signatures individually.
+              Costs millions of hash operations per block.
+            </p>
           </div>
-          <p className="text-sm text-text-muted">
-            In recursive proof composition, a verifier runs <em>inside</em> another proof.
-            The cost of verification directly multiplies the cost of the outer proof.
-            Faster verification means smaller recursive circuits, enabling practical
-            proof aggregation and incrementally verifiable computation.
-          </p>
+          <div className="flex items-center justify-center text-text-muted text-lg">→</div>
+          <div className="flex-1 bg-bg border border-border-light rounded p-3">
+            <div className="text-xs font-semibold text-green mb-1">With SNARG (using WHIR)</div>
+            <p className="text-xs text-text-muted">
+              One prover generates a proof. Every node verifies it in ~400μs.
+              WHIR's fast verifier keeps on-chain costs minimal.
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-text-muted mt-4 italic">
+          WHIR is the component that makes the <em>verifier</em> fast. Its query complexity of{' '}
+          <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot \log \frac{m}{k})" /> is what
+          enables verification in hundreds of microseconds rather than milliseconds -- critical
+          when this cost is paid by every node in the network, or when verification happens
+          inside a recursive proof circuit.
+        </p>
+      </div>
+
+      {/* Prior Art */}
+      <h3 className="font-heading text-xl font-semibold text-text mt-10 mb-3">
+        The Road to WHIR: Prior Proof Systems
+      </h3>
+      <p className="mb-4">
+        WHIR didn't appear out of nowhere. It builds on a lineage of proof systems, each making
+        different tradeoffs between proof size, prover speed, verifier speed, and trust assumptions.
+        Understanding where WHIR came from helps explain <em>why</em> it's designed the way it is.
+      </p>
+
+      <div className="space-y-4 my-4">
+        {/* Groth16 */}
+        <div className="bg-bg-card border border-border rounded-lg p-5">
+          <div className="flex items-start gap-3">
+            <div className="text-xs font-mono bg-navy text-white rounded px-2 py-0.5 mt-0.5 shrink-0">
+              2016
+            </div>
+            <div>
+              <div className="font-heading font-semibold text-base text-text mb-1">
+                Groth16
+              </div>
+              <p className="text-sm text-text-muted mb-2">
+                The gold standard for succinct proofs for nearly a decade. Groth16 produces the
+                smallest proofs (~128 bytes) with the fastest verification (~280k gas on Ethereum).
+                It's based on elliptic curve pairings, which gives it remarkable succinctness.
+              </p>
+              <p className="text-sm text-text-muted mb-2">
+                <strong>The catch:</strong> Groth16 requires a <em>trusted setup</em> -- a ceremony
+                where secret randomness is generated and must be destroyed. If any participant keeps
+                the secret, they can forge proofs. It also relies on pairing-based cryptography,
+                which is <strong>not quantum-resistant</strong>.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Tiny proofs</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Fast verification</span>
+                <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Trusted setup</span>
+                <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Not post-quantum</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* FRI */}
+        <div className="bg-bg-card border border-border rounded-lg p-5">
+          <div className="flex items-start gap-3">
+            <div className="text-xs font-mono bg-navy text-white rounded px-2 py-0.5 mt-0.5 shrink-0">
+              2018
+            </div>
+            <div>
+              <div className="font-heading font-semibold text-base text-text mb-1">
+                FRI <span className="text-text-muted font-normal">(Fast Reed-Solomon IOP of Proximity)</span>
+              </div>
+              <p className="text-sm text-text-muted mb-2">
+                FRI was a breakthrough: a proximity test for Reed-Solomon codes that uses only
+                hashing -- no elliptic curves, no pairings, no trusted setup. This makes it
+                <strong> transparent</strong> (anyone can verify the setup) and
+                <strong> plausibly post-quantum secure</strong> (security relies only on
+                hash functions).
+              </p>
+              <p className="text-sm text-text-muted mb-2">
+                FRI works by repeatedly <em>folding</em> a polynomial using random challenges,
+                halving the domain each round until the polynomial is small enough to check
+                directly. It powers STARKs, which are used in production systems like StarkNet
+                and zkSync.
+              </p>
+              <p className="text-sm text-text-muted">
+                <strong>The tradeoff:</strong> FRI has larger proofs (~150-250 KB) and slower
+                verification compared to Groth16. The verifier must make{' '}
+                <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot m)" /> queries -- notably
+                the <InlineMath tex="m" /> factor (number of variables) makes verification cost
+                grow with the problem size.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">No trusted setup</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Post-quantum</span>
+                <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Larger proofs</span>
+                <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Slower verification</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* STIR */}
+        <div className="bg-bg-card border border-border rounded-lg p-5">
+          <div className="flex items-start gap-3">
+            <div className="text-xs font-mono bg-navy text-white rounded px-2 py-0.5 mt-0.5 shrink-0">
+              2024
+            </div>
+            <div>
+              <div className="font-heading font-semibold text-base text-text mb-1">
+                STIR <span className="text-text-muted font-normal">(Shift To Improve Rate)</span>
+              </div>
+              <p className="text-sm text-text-muted mb-2">
+                STIR improved on FRI by introducing <em>rate improvements</em> across rounds.
+                In FRI, the code rate stays constant, meaning each round does as many queries
+                relative to the domain size. STIR observed that by decreasing the rate (increasing
+                redundancy) each round, you need fewer queries per round.
+              </p>
+              <p className="text-sm text-text-muted mb-2">
+                This brought the query complexity down to{' '}
+                <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot \log \frac{m}{k})" /> --
+                replacing FRI's linear <InlineMath tex="m" /> with a logarithmic{' '}
+                <InlineMath tex="\log m" />. STIR also matched proof sizes with the best known
+                schemes.
+              </p>
+              <p className="text-sm text-text-muted">
+                <strong>What remained:</strong> STIR's verifier, while making fewer queries,
+                still did <InlineMath tex="O(\frac{\lambda^2}{k} \cdot 2^k)" /> field operations
+                per query -- the per-query cost was high, keeping total verification time
+                in the millisecond range.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Fewer queries than FRI</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Smaller proofs</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Post-quantum</span>
+                <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Expensive per-query verification</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* WHIR */}
+        <div className="bg-bg-card border-2 border-sienna rounded-lg p-5">
+          <div className="flex items-start gap-3">
+            <div className="text-xs font-mono bg-sienna text-white rounded px-2 py-0.5 mt-0.5 shrink-0">
+              2024
+            </div>
+            <div>
+              <div className="font-heading font-semibold text-base text-sienna mb-1">
+                WHIR <span className="text-text-muted font-normal">(Weights Help Improving Rate)</span>
+              </div>
+              <p className="text-sm text-text-muted mb-2">
+                WHIR keeps STIR's optimal query complexity but dramatically reduces the
+                <em> cost per query</em>. The key insight: instead of working with standard
+                Reed-Solomon codes, WHIR uses <strong>constrained Reed-Solomon codes</strong> that
+                natively integrate the sumcheck protocol. This lets the verifier combine the
+                constraint check and the proximity test into a single operation.
+              </p>
+              <p className="text-sm text-text-muted mb-2">
+                The result: verification in <strong>hundreds of microseconds</strong> instead of
+                milliseconds. WHIR's verifier does{' '}
+                <InlineMath tex="O(q_{\text{WHIR}} \cdot (2^k + m))" /> field operations total --
+                linear in the data it reads, with no field divisions required. This makes it the
+                fastest known verifier for proximity testing.
+              </p>
+              <p className="text-sm text-text-muted">
+                WHIR also serves as a drop-in replacement for FRI, STIR, and BaseFold in any
+                system that uses polynomial commitment schemes via the BCS transformation.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Fastest verification</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Same queries as STIR</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">No trusted setup</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Post-quantum</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

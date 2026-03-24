@@ -15,7 +15,7 @@ const INITIAL_POLY: Poly = [2, 5, 3, 1];
 // Color palette for pairs
 const PAIR_COLORS = ['#8b4513', '#1a365d', '#c53030', '#2f855a'];
 
-export function S5_Folding() {
+export function S6_Folding() {
   const [alpha, setAlpha] = useState(3);
   const [, setFolded] = useState(false);
   const [foldCount, setFoldCount] = useState(0);
@@ -86,7 +86,7 @@ export function S5_Folding() {
   return (
     <Section
       id="folding"
-      number={5}
+      number={6}
       title="Folding"
       subtitle="Halving the domain with a random challenge -- the key to WHIR's recursion."
     >

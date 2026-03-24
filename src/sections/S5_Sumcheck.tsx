@@ -21,7 +21,7 @@ const stepLabels = [
   'Final Check',
 ];
 
-export function S4_Sumcheck() {
+export function S5_Sumcheck() {
   const [step, setStep] = useState(0);
 
   const result = useMemo(
@@ -51,7 +51,7 @@ export function S4_Sumcheck() {
   return (
     <Section
       id="sumcheck"
-      number={4}
+      number={5}
       title="The Sumcheck Protocol"
       subtitle="Reduce an exponential-size sum to a single evaluation, one variable at a time."
     >

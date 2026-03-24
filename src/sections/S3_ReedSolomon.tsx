@@ -9,7 +9,7 @@ import { evaluateAll } from '../utils/polynomial';
 import type { Poly } from '../utils/polynomial';
 import { generateDomain } from '../utils/reedsolomon';
 
-export function S2_ReedSolomon() {
+export function S3_ReedSolomon() {
   // Polynomial coefficients
   const [a0, setA0] = useState(3);
   const [a1, setA1] = useState(5);
@@ -57,7 +57,7 @@ export function S2_ReedSolomon() {
   return (
     <Section
       id="reed-solomon"
-      number={2}
+      number={3}
       title="Reed-Solomon Codes"
       subtitle="Low-degree polynomials give us redundancy, and redundancy lets us detect errors."
     >

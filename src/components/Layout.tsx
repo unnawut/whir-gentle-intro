@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 
 const sections = [
   { id: 'problem', label: 'What Problem Does WHIR Solve?' },
+  { id: 'code-to-polynomials', label: 'From Code to Polynomials' },
   { id: 'reed-solomon', label: 'Reed-Solomon Codes' },
   { id: 'constrained-rs', label: 'Constrained Reed-Solomon Codes' },
   { id: 'sumcheck', label: 'The Sumcheck Protocol' },
