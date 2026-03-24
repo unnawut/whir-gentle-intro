@@ -37,9 +37,13 @@ export function S4_ConstrainedRS() {
         What Are CRS Codes?
       </h3>
       <p>
-        Standard Reed-Solomon codes only require that a function is close to a low-degree
-        polynomial. <strong>Constrained Reed-Solomon (CRS)</strong> codes add an additional
-        requirement: the polynomial must also satisfy a specific algebraic equation.
+        Standard Reed-Solomon codes only check one thing: "is this close to a low-degree
+        polynomial?" But leanVM needs more than that. Its execution trace must satisfy AIR
+        transition constraints — for example, an ADD instruction requires that{' '}
+        <InlineMath tex="\nu_B = \nu_A + \nu_C" />. <strong>Constrained Reed-Solomon
+        (CRS)</strong> codes bundle both checks into one: proximity testing <em>and</em>{' '}
+        constraint satisfaction. This is why WHIR was chosen for leanVM — it handles
+        constrained RS codes natively, unlike FRI which only does proximity testing.
       </p>
 
       <MathBlock tex="\text{CRS}[L, d, \hat{w}, \sigma] = \left\{ \hat{f} \in \text{RS}[L, d] \ \middle|\ \sum_{b \in \{0,1\}^m} \hat{w}(\hat{f}(b), b) = \sigma \right\}" />
@@ -83,11 +87,17 @@ export function S4_ConstrainedRS() {
         Why Add a Constraint?
       </h3>
       <p>
-        The key insight is that <em>evaluation queries</em> can be expressed as CRS constraints.
-        When the verifier wants to check that a polynomial <InlineMath tex="\hat{f}" /> evaluates
-        to a specific value at a specific point <InlineMath tex="z" />, say{' '}
-        <InlineMath tex="\hat{f}(z) = v" />, this can be encoded using the{' '}
-        <strong>equality polynomial</strong>:
+        In leanVM, the execution table has columns that must satisfy transition constraints
+        between consecutive rows. For example, if the current instruction is ADD, then the
+        output value must equal the sum of the two input values. In CRS terms, these AIR
+        constraints are encoded as a weighted sum: <InlineMath tex="\sum \hat{w}(\hat{f}(b), b) = \sigma" />{' '}
+        can express "the sum of this AIR constraint polynomial over all rows equals zero,"
+        meaning every row satisfies the constraint.
+      </p>
+      <p className="mt-3">
+        More generally, <em>evaluation queries</em> can also be expressed as CRS constraints.
+        When the verifier wants to check that <InlineMath tex="\hat{f}(z) = v" />, this
+        is encoded using the <strong>equality polynomial</strong>:
       </p>
 
       <MathBlock tex="\text{eq}(X, z) = \prod_{i=1}^{m} \big((1 - z_i)(1 - X_i) + z_i X_i\big)" />
@@ -103,9 +113,11 @@ export function S4_ConstrainedRS() {
         Interactive Example
       </h3>
       <p className="mb-4">
-        Let's work with the simplest case: a 2-variable multilinear polynomial on{' '}
-        <InlineMath tex="\{0,1\}^2" /> with the identity weight function{' '}
-        <InlineMath tex="\hat{w} = 1" />. The constraint becomes just: the sum of all four
+        In leanVM, the CRS constraint encodes things like "every ADD instruction correctly
+        computes its result" or "every memory access is consistent." The interactive demo
+        below shows the same idea at a smaller scale: a 2-variable multilinear polynomial
+        on <InlineMath tex="\{0,1\}^2" /> with the identity weight function{' '}
+        <InlineMath tex="\hat{w} = 1" />. The constraint becomes: the sum of all four
         evaluations must equal <InlineMath tex="\sigma" />.
       </p>
 

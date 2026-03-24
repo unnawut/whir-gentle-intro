@@ -2,6 +2,14 @@ import { useState, type ReactNode } from 'react';
 
 export const SECTIONS = [
   {
+    id: 'introduction',
+    label: 'Introduction',
+    subs: [
+      { label: 'About This Visualizer', id: 'about-this-visualizer' },
+      { label: 'How the Demos Work', id: 'how-demos-work' },
+    ],
+  },
+  {
     id: 'problem',
     label: 'What Problem Does WHIR Solve?',
     subs: [
@@ -29,6 +37,7 @@ export const SECTIONS = [
       { label: 'What Are Reed-Solomon Codes?', id: 'what-are-rs-codes' },
       { label: 'Polynomial Explorer', id: 'polynomial-explorer' },
       { label: 'Hamming Distance', id: 'hamming-distance' },
+      { label: 'Why Redundancy Matters', id: 'why-redundancy-matters' },
     ],
   },
   {
@@ -111,20 +120,23 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
                 }
               `}
             >
-              <span className="text-xs text-text-muted mr-1.5">{i + 1}.</span>
+              {i > 0 && <span className="text-xs text-text-muted mr-1.5">{i}.</span>}
               {label}
             </button>
             {isActive && subs.length > 0 && (
               <div className="ml-7 border-l border-border-light">
                 {subs.map((sub) => (
-                  <a
+                  <button
                     key={sub.id}
-                    href={`#${sub.id}`}
-                    onClick={() => setMenuOpen(false)}
-                    className="cursor-pointer block pl-3 py-1 text-[11px] leading-snug text-text-muted/70 hover:text-sienna transition-colors"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      const el = document.getElementById(sub.id);
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="cursor-pointer block w-full text-left pl-3 py-1 text-[11px] leading-snug text-text-muted/70 hover:text-sienna transition-colors"
                   >
                     {sub.label}
-                  </a>
+                  </button>
                 ))}
               </div>
             )}
@@ -138,12 +150,15 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
     <div className="min-h-screen bg-bg">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed top-0 left-0 w-60 h-screen flex-col border-r border-border-light bg-bg-card z-30">
-        <div className="px-6 pt-8 pb-6">
+        <button
+          onClick={() => { onNavigate(0); setMenuOpen(false); }}
+          className="cursor-pointer px-6 pt-8 pb-6 text-left w-full"
+        >
           <h1 className="font-heading text-3xl font-bold text-navy tracking-tight">
             WHIR
           </h1>
           <p className="text-xs text-text-muted mt-1">Protocol Visualizer</p>
-        </div>
+        </button>
         <div className="flex-1 overflow-y-auto pb-8">{navLinks}</div>
       </aside>
 
@@ -177,9 +192,11 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
             )}
           </svg>
         </button>
-        <h1 className="font-heading text-xl font-bold text-navy ml-3">WHIR</h1>
+        <button onClick={() => onNavigate(0)} className="cursor-pointer ml-3">
+          <h1 className="font-heading text-xl font-bold text-navy">WHIR</h1>
+        </button>
         <span className="ml-auto text-xs text-text-muted font-mono">
-          {activePage + 1} / {SECTIONS.length}
+          {activePage} / {SECTIONS.length - 1}
         </span>
       </header>
 

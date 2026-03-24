@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, SECTIONS } from './components/Layout'
+import { S0_Introduction } from './sections/S0_Introduction'
 import { S1_WhatProblem } from './sections/S1_WhatProblem'
 import { S2_FromCodeToPolynomials } from './sections/S2_FromCodeToPolynomials'
 import { S3_ReedSolomon } from './sections/S3_ReedSolomon'
@@ -11,6 +12,7 @@ import { S8_RecursiveStructure } from './sections/S8_RecursiveStructure'
 import { S9_Performance } from './sections/S9_Performance'
 
 const SECTION_COMPONENTS = [
+  S0_Introduction,
   S1_WhatProblem,
   S2_FromCodeToPolynomials,
   S3_ReedSolomon,
@@ -54,7 +56,7 @@ function PageNav({ page, navigateTo, borderSide }: { page: number; navigateTo: (
         ) : <div />}
 
         <span className="text-xs text-text-muted/50 font-mono">
-          {page + 1} / {SECTIONS.length}
+          {page} / {SECTIONS.length - 1}
         </span>
 
         {page < SECTIONS.length - 1 ? (
@@ -118,7 +120,7 @@ export default function App() {
           ) : <div />}
 
           <span className="text-text-muted/40 font-mono">
-            {page + 1} / {SECTIONS.length}
+            {page} / {SECTIONS.length - 1}
           </span>
 
           {page < SECTIONS.length - 1 ? (

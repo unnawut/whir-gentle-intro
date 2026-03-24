@@ -59,12 +59,14 @@ export function S5_Sumcheck() {
         How Sumcheck Works
       </h3>
       <p>
-        The <strong>sumcheck protocol</strong> is one of the most important building blocks
-        in modern proof systems. It solves the following problem: the prover claims that the
-        sum of a multilinear polynomial over the boolean hypercube{' '}
-        <InlineMath tex="\{0,1\}^m" /> equals some value <InlineMath tex="H" />. The verifier
-        wants to check this claim <em>without</em> evaluating all{' '}
-        <InlineMath tex="2^m" /> points.
+        In leanVM, the prover needs to convince the verifier that AIR constraints hold
+        on <em>all</em> <InlineMath tex="2^{25}" /> rows of the execution trace. Checking
+        every row individually is far too expensive. The <strong>sumcheck protocol</strong>{' '}
+        solves this by reducing an exponential-size sum to a <em>single</em> random
+        evaluation. Inside WHIR, sumcheck is used in each iteration to reduce the CRS
+        constraint to a simpler one. It also enables batching: as described in Section 3.7
+        of the leanVM paper, multiple polynomial claims can be combined into one via
+        sumcheck queries over stacked multilinear polynomials.
       </p>
 
       <MathBlock tex="\sum_{b \in \{0,1\}^m} f(b) \stackrel{?}{=} H" />
@@ -105,8 +107,10 @@ export function S5_Sumcheck() {
         Step-by-Step Example
       </h3>
       <p className="mb-4">
-        Let's walk through the full sumcheck on a 2-variable polynomial in{' '}
-        <InlineMath tex="\mathbb{F}_{17}" />. Use the arrows to step through the protocol.
+        Below we walk through sumcheck on a tiny 2-variable polynomial in{' '}
+        <InlineMath tex="\mathbb{F}_{17}" />. In leanVM, the same protocol runs on
+        polynomials with 25+ variables, reducing <InlineMath tex="2^{25}" /> constraint
+        checks to a single evaluation. Use the arrows to step through.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 space-y-5">
@@ -366,9 +370,11 @@ export function S5_Sumcheck() {
         <p className="text-sm text-text-muted">
           Instead of checking <InlineMath tex="2^m" /> evaluations, the verifier only
           exchanges <InlineMath tex="m" /> messages and evaluates{' '}
-          <InlineMath tex="f" /> at <strong>one</strong> point. For{' '}
-          <InlineMath tex="m = 20" />, that is 1 evaluation instead of over a million.
-          The sumcheck protocol is the engine that powers WHIR's constraint reduction.
+          <InlineMath tex="f" /> at <strong>one</strong> point. In leanVM with{' '}
+          <InlineMath tex="m = 25" />, that means 1 evaluation instead of over 33 million.
+          The sumcheck protocol is the engine that powers WHIR's constraint reduction,
+          and it is what allows leanVM to batch multiple table polynomials into a single
+          check (Section 3.7: "simple stacking of multilinear polynomials").
         </p>
       </div>
     </Section>

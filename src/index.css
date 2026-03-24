@@ -41,6 +41,7 @@ h1, h2, h3, h4 {
 
 h3[id] {
   scroll-margin-top: 5rem;
+  font-size: 1.5rem;
 }
 
 /* KaTeX overrides for consistent sizing */

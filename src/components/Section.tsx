@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 interface SectionProps {
   id: string;
-  number: number;
+  number?: number;
   title: string;
   subtitle?: string;
   children: ReactNode;
@@ -12,9 +12,11 @@ export function Section({ id, number, title, subtitle, children }: SectionProps)
   return (
     <section id={id} className="pt-10 md:pt-16 pb-20 md:pb-28 px-6">
       <div className="max-w-[760px] mx-auto">
-        <p className="text-sm font-medium text-sienna/70 tracking-wide uppercase mb-2">
-          Section {number}
-        </p>
+        {number != null && (
+          <p className="text-sm font-medium text-sienna/70 tracking-wide uppercase mb-2">
+            Section {number}
+          </p>
+        )}
         <h2 className="font-heading text-3xl md:text-4xl font-semibold text-text leading-tight">
           {title}
         </h2>

@@ -118,8 +118,11 @@ export function S7_WhirIteration() {
       <p>
         A single WHIR iteration takes a proximity claim about a function on a domain of
         size <InlineMath tex="n" /> and reduces it to a claim about a function on a domain
-        of size <InlineMath tex="n/2" />. This section walks through all 6 sub-steps of
-        one iteration as a conversation between the prover and verifier.
+        of size <InlineMath tex="n/2" />. Inside leanVM, this is the core loop that shrinks
+        the committed polynomial — the stacked columns of the execution table, Poseidon table,
+        and extension op table — until it is small enough to check directly. This section
+        walks through all 6 sub-steps of one iteration as a conversation between the prover
+        and verifier.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
@@ -166,6 +169,12 @@ export function S7_WhirIteration() {
           </div>
         </div>
 
+        <div className="text-[11px] text-text-muted bg-bg border border-border-light rounded px-3 py-2 mb-1">
+          <strong>leanVM scale:</strong> The initial state would be domain size 2<sup>26</sup>, 25 variables, rate 1/2.
+          After one iteration with k=7: domain 2<sup>19</sup>, 18 variables.
+          (This demo uses a tiny example for illustration.)
+        </div>
+
         <StepNavigator
           step={step}
           totalSteps={6}
@@ -189,6 +198,8 @@ export function S7_WhirIteration() {
                 <p className="text-sm text-text-muted mb-3">
                   The prover and verifier run {K} rounds of the sumcheck protocol to reduce
                   the constraint from a sum over the hypercube to a single evaluation.
+                  In leanVM, these sumcheck rounds reduce the AIR constraint check over 2<sup>25</sup> rows
+                  to a claim about a single evaluation point.
                 </p>
                 {sumcheckResult.rounds.map((rd, i) => (
                   <div key={i}>
@@ -216,7 +227,10 @@ export function S7_WhirIteration() {
             {step === 1 && (
               <div className="space-y-2">
                 <p className="text-sm text-text-muted mb-3">
-                  The prover computes the folded function{' '}
+                  The prover folds the committed polynomial — in leanVM, this is the stacked
+                  polynomial containing all table columns (execution, Poseidon, extension ops) —
+                  producing a new function on a domain half the size.
+                  Concretely, the prover computes{' '}
                   <InlineMath tex={`g = \\text{Fold}(f, ${FOLD_ALPHA})`} /> and sends its
                   evaluations to the verifier.
                 </p>
@@ -241,8 +255,9 @@ export function S7_WhirIteration() {
               <div className="space-y-2">
                 <p className="text-sm text-text-muted mb-3">
                   The verifier picks a random point <InlineMath tex="z_0" />{' '}
-                  <em>outside</em> the domain to test the prover. This ensures the prover
-                  cannot "cheat" by only being correct on domain points.
+                  <em>outside</em> the evaluation domain. This is crucial for
+                  soundness — it prevents the prover from crafting evaluations that only
+                  look correct on the domain.
                 </p>
                 <ProtocolMessage sender="verifier">
                   I want to test you at a random out-of-domain point:{' '}
@@ -275,7 +290,9 @@ export function S7_WhirIteration() {
               <div className="space-y-2">
                 <p className="text-sm text-text-muted mb-3">
                   The verifier samples random points from the domain and checks that the
-                  folding was computed correctly. These "shift queries" catch cheating.
+                  folding was computed correctly. In leanVM, these are Merkle path
+                  openings — the verifier reads a few positions from the committed
+                  polynomial and checks fold consistency.
                 </p>
                 <ProtocolMessage sender="verifier">
                   I am querying the following points to check folding consistency:
@@ -299,8 +316,10 @@ export function S7_WhirIteration() {
             {step === 5 && (
               <div className="space-y-3">
                 <p className="text-sm text-text-muted mb-3">
-                  Both parties agree on the new, smaller proximity claim. The original
-                  problem has been reduced!
+                  The new problem is smaller: fewer variables, smaller domain. In leanVM,
+                  this shrinks from ~2<sup>26</sup> to ~2<sup>19</sup> in one iteration
+                  (with folding parameter k=7). Both parties agree on the new, smaller
+                  proximity claim.
                 </p>
                 <ProtocolMessage sender="prover">
                   I commit to the new function g on the smaller domain.
@@ -345,6 +364,7 @@ export function S7_WhirIteration() {
                   </div>
                   <p className="text-sm text-text-muted text-center mt-2">
                     The problem is now half the size. Repeat until the base case!
+                    In leanVM with k=7, this takes only ~4 iterations to go from 25 variables down to zero.
                   </p>
                 </div>
               </div>

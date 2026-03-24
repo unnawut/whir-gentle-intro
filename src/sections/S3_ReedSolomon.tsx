@@ -9,6 +9,128 @@ import { evaluateAll } from '../utils/polynomial';
 import type { Poly } from '../utils/polynomial';
 import { generateDomain } from '../utils/reedsolomon';
 
+function CostComparison({ traceRows }: { traceRows: number }) {
+  const [securityBits, setSecurityBits] = useState(100);
+
+  // Without RS: verifier must check ALL points (re-execute the whole trace)
+  const naiveChecks = Math.pow(2, traceRows);
+
+  // With RS + WHIR: verifier queries O(λ + (λ/k) · log(m/k)) points
+  // Using k ≈ log(m), queries ≈ O(λ) which is roughly λ
+  const whirQueries = Math.ceil(securityBits + (securityBits / Math.log2(traceRows)) * Math.log2(traceRows / Math.log2(traceRows)));
+
+  // Ratio
+  const ratio = naiveChecks / whirQueries;
+
+  const formatNum = (n: number) => {
+    if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+    if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+    return n.toString();
+  };
+
+  // Bar widths (log scale for visibility)
+  const naiveLog = Math.log2(naiveChecks);
+  const whirLog = Math.log2(whirQueries);
+  const maxLog = naiveLog;
+
+  return (
+    <div className="bg-bg-card border border-border rounded-lg p-5 my-4 space-y-5">
+      <Slider
+        label="Security parameter λ"
+        value={securityBits}
+        min={80}
+        max={128}
+        step={4}
+        onChange={setSecurityBits}
+        displayValue={`${securityBits} bits`}
+      />
+
+      <div className="space-y-4">
+        {/* Naive approach */}
+        <div>
+          <div className="flex items-center justify-between text-sm mb-1.5">
+            <span className="font-medium text-red">Without RS: check every point</span>
+            <span className="font-mono text-xs text-text-muted">
+              2<sup>{traceRows}</sup> = {formatNum(naiveChecks)} checks
+            </span>
+          </div>
+          <div className="h-7 bg-border-light rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-red/70 rounded-full flex items-center justify-end pr-2"
+              initial={false}
+              animate={{ width: `${(naiveLog / maxLog) * 100}%` }}
+              transition={{ duration: 0.4 }}
+            >
+              <span className="text-[10px] text-white font-mono whitespace-nowrap">
+                {formatNum(naiveChecks)}
+              </span>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* WHIR approach */}
+        <div>
+          <div className="flex items-center justify-between text-sm mb-1.5">
+            <span className="font-medium text-green">With RS + WHIR: proximity test</span>
+            <span className="font-mono text-xs text-text-muted">
+              ~{whirQueries} queries
+            </span>
+          </div>
+          <div className="h-7 bg-border-light rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-green/70 rounded-full flex items-center justify-end pr-2"
+              initial={false}
+              animate={{ width: `${Math.max((whirLog / maxLog) * 100, 4)}%` }}
+              transition={{ duration: 0.4 }}
+            >
+              <span className="text-[10px] text-white font-mono whitespace-nowrap">
+                {whirQueries}
+              </span>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      {/* Ratio callout */}
+      <div className="text-center">
+        <motion.div
+          key={ratio.toFixed(0)}
+          initial={{ scale: 0.95, opacity: 0.5 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sienna/10 border border-sienna/20"
+        >
+          <span className="text-sm font-semibold text-sienna">
+            {formatNum(Math.round(ratio))}× fewer checks
+          </span>
+        </motion.div>
+      </div>
+
+      <div className="text-xs text-text-muted space-y-2">
+        <p>
+          <strong className="text-red">Without RS:</strong> the verifier has no redundancy to exploit.
+          To confirm the prover's trace is correct, it must re-compute or check every single
+          evaluation — all 2<sup>{traceRows}</sup> of them. This is essentially re-executing
+          the entire leanVM computation.
+        </p>
+        <p>
+          <strong className="text-green">With RS + WHIR:</strong> the RS encoding adds
+          redundancy (rate <InlineMath tex="\rho = 1/2" /> means double the domain).
+          WHIR exploits this redundancy to test proximity with only{' '}
+          <InlineMath tex={`O(\\lambda + \\frac{\\lambda}{k} \\cdot \\log \\frac{m}{k})`} /> queries — roughly{' '}
+          {whirQueries} random checks at {securityBits}-bit security.
+          The verifier reads a tiny fraction of the data and is still overwhelmingly confident.
+        </p>
+        <p>
+          In leanVM, this means the on-chain verifier can confirm that a batch of leanXMSS
+          signature verifications was performed correctly by reading ~{whirQueries} field
+          elements instead of re-running all 2<sup>{traceRows}</sup> execution steps.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function S3_ReedSolomon() {
   // Polynomial coefficients
   const [a0, setA0] = useState(3);
@@ -81,10 +203,23 @@ export function S3_ReedSolomon() {
         is called the <strong>Hamming distance</strong>.
       </p>
 
+      <p className="mt-4">
+        In <strong>leanVM</strong>, the prover evaluates each column polynomial over a domain much
+        larger than the execution trace. With a rate of{' '}
+        <InlineMath tex="\rho = 1/2" />, a trace of <InlineMath tex="2^{25}" /> rows means
+        evaluating over <InlineMath tex="2^{26}" /> domain points. This Reed-Solomon encoding
+        is what gives the verifier the ability to detect cheating without reading the entire trace --
+        WHIR only needs to query a tiny fraction of these evaluations to be convinced.
+      </p>
+
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
         <p className="text-sm text-text-muted">
           All arithmetic below is in <InlineMath tex="\mathbb{F}_{17}" /> (the integers
           modulo 17). Our evaluation domain is a multiplicative subgroup of size 8.
+          In leanVM, polynomials have coefficients in the KoalaBear field{' '}
+          <InlineMath tex="(p = 2^{31} - 2^{24} + 1)" /> and are evaluated over domains
+          of size <InlineMath tex="2^{26}" /> or larger. We use{' '}
+          <InlineMath tex="\mathbb{F}_{17}" /> here so you can see the numbers.
         </p>
       </div>
 
@@ -101,7 +236,7 @@ export function S3_ReedSolomon() {
       <div className="bg-bg-card border border-border rounded-lg p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Slider
-            label="a\u2080"
+            label="a&#x2080;"
             value={a0}
             min={0}
             max={16}
@@ -109,7 +244,7 @@ export function S3_ReedSolomon() {
             displayValue={`${a0}`}
           />
           <Slider
-            label="a\u2081"
+            label="a&#x2081;"
             value={a1}
             min={0}
             max={16}
@@ -117,7 +252,7 @@ export function S3_ReedSolomon() {
             displayValue={`${a1}`}
           />
           <Slider
-            label="a\u2082"
+            label="a&#x2082;"
             value={a2}
             min={0}
             max={16}
@@ -263,6 +398,13 @@ export function S3_ReedSolomon() {
         <InlineMath tex="n - d + 1" /> positions.
       </p>
 
+      <p className="mb-4">
+        When a dishonest prover sends a corrupted trace column in leanVM, the evaluations will be
+        "far" from any valid low-degree polynomial. WHIR's job inside leanVM is to catch exactly
+        this -- it tests proximity by reading only a tiny fraction of the{' '}
+        <InlineMath tex="2^{26}" /> evaluations.
+      </p>
+
       <div className="bg-bg-card border border-border rounded-lg p-5 space-y-4">
         <Slider
           label="Number of corruptions"
@@ -332,11 +474,25 @@ export function S3_ReedSolomon() {
         </p>
       </div>
 
+      {/* Interactive C: Cost comparison */}
+      <h3 id="why-redundancy-matters" className="font-heading text-xl font-semibold text-text mt-10 mb-4">
+        Why Redundancy Matters
+      </h3>
+      <p className="mb-4">
+        What if we skipped the Reed-Solomon encoding and just sent the raw polynomial
+        coefficients? The verifier would have to re-evaluate the polynomial at every point
+        to check correctness — no shortcuts. RS encoding creates redundancy that lets the
+        verifier check far fewer points while still catching cheaters.
+      </p>
+
+      <CostComparison traceRows={25} />
+
       <p className="mt-6 text-sm text-text-muted">
         Reed-Solomon codes are the foundation of proximity testing: instead of checking
         that a function is <em>exactly</em> a low-degree polynomial, protocols like WHIR check
         that it is <em>close</em> to one. This relaxation is what makes sublinear verification
-        possible.
+        possible — and it is exactly what allows leanVM's verifier to confirm the correctness
+        of signature aggregation without re-executing the entire computation.
       </p>
     </Section>
   );

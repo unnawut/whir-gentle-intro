@@ -4,40 +4,47 @@ import { Section } from '../components/Section';
 import { Math as InlineMath, MathBlock } from '../components/MathBlock';
 import { StepNavigator } from '../components/ui/StepNavigator';
 
-// A tiny "program" for the trace example
-const PROGRAM_CODE = `function checkHash(input, expected):
-  h = hash(input)        // step 1
-  return h == expected    // step 2`;
+// A leanVM program (Example 2.1): assert x < 10, compute z = x*y + 100, assert z < 1000
+const PROGRAM_CODE = `function checked_mul_add(x, y):
+  assert x < 10          // range-check x
+  z = x * y + 100        // compute result
+  assert z < 1000         // range-check z
+  return z`;
 
-// Execution trace rows
+// Execution trace rows using leanVM's execution table columns
+// Example: x = 3, y = 7 → z = 3*7 + 100 = 121
 const TRACE_ROWS = [
-  { step: 0, pc: 0, reg_a: 42, reg_b: 0, reg_c: 0, op: 'LOAD input', note: 'Load input value 42 into register A' },
-  { step: 1, pc: 1, reg_a: 42, reg_b: 7, reg_c: 0, op: 'HASH A → B', note: 'Compute hash of A, store in B. hash(42) = 7' },
-  { step: 2, pc: 2, reg_a: 42, reg_b: 7, reg_c: 7, op: 'LOAD expected', note: 'Load expected value 7 into register C' },
-  { step: 3, pc: 3, reg_a: 42, reg_b: 7, reg_c: 1, op: 'EQ B, C → C', note: 'Compare B and C, store result (1 = equal) in C' },
-  { step: 4, pc: 4, reg_a: 42, reg_b: 7, reg_c: 1, op: 'HALT', note: 'Program halts. Output = C = 1 (valid)' },
+  { step: 0, pc: 0, fp: 100, addr_a: 100, val_a: 3,   addr_b: 0, val_b: 0,   addr_c: 0,   val_c: 0,   instr: 'DEREF',  note: 'Load x = 3 from memory at fp+0. Range-check witness: x is "small".' },
+  { step: 1, pc: 1, fp: 100, addr_a: 200, val_a: 9,   addr_b: 0, val_b: 6,   addr_c: 100, val_c: 3,   instr: 'ADD',    note: 'Compute 9 - x = 6. The ADD constraint enforces val_B = val_A + val_C, i.e. 6 = 9 - 3? Here: val_B - (val_A + val_C) = 0 rearranges so 9 = 6 + 3.' },
+  { step: 2, pc: 2, fp: 100, addr_a: 200, val_a: 6,   addr_b: 0, val_b: 0,   addr_c: 0,   val_c: 0,   instr: 'DEREF',  note: 'Assert 9 - x = 6 is "small" by dereferencing it from a range-check table.' },
+  { step: 3, pc: 3, fp: 100, addr_a: 201, val_a: 21,  addr_b: 100, val_b: 3, addr_c: 101, val_c: 7,   instr: 'MUL',    note: 'Compute x * y = 3 * 7 = 21. The MUL constraint enforces val_B - val_A * val_C = 0, i.e. 21 - 3 * 7 = 0? Rearranged: val_A = val_B * val_C? No: val_B = val_A, and constraint is val_B - val_A * val_C.' },
+  { step: 4, pc: 4, fp: 100, addr_a: 202, val_a: 121, addr_b: 201, val_b: 21, addr_c: 203, val_c: 100, instr: 'ADD',    note: 'Compute x*y + 100 = 21 + 100 = 121. ADD constraint: val_B = val_A + val_C → 121 = 21 + 100.' },
+  { step: 5, pc: 5, fp: 100, addr_a: 202, val_a: 121, addr_b: 0, val_b: 0,   addr_c: 0,   val_c: 0,   instr: 'DEREF',  note: 'Load z = 121. Range-check witness: z is "small".' },
+  { step: 6, pc: 6, fp: 100, addr_a: 204, val_a: 999, addr_b: 0, val_b: 878, addr_c: 202, val_c: 121, instr: 'ADD',    note: 'Compute 999 - z = 999 - 121 = 878. ADD constraint: val_B = val_A + val_C → 878 + 121 = 999.' },
+  { step: 7, pc: 7, fp: 100, addr_a: 204, val_a: 878, addr_b: 0, val_b: 0,   addr_c: 0,   val_c: 0,   instr: 'DEREF',  note: 'Assert 999 - z = 878 is "small", confirming z < 1000.' },
+  { step: 8, pc: 8, fp: 100, addr_a: 0,   val_a: 0,   addr_b: 0, val_b: 0,   addr_c: 0,   val_c: 0,   instr: 'JUMP',   note: 'Return. Jump back to the caller. The wrapping-pair trick pairs this last row with itself for constraint checking.' },
 ];
 
 const CONSTRAINT_STEPS = [
   {
     title: 'The Execution Trace',
     description:
-      'Every program, no matter how complex, can be run step by step. At each step, the machine has a state: program counter, registers, memory. We record every state in a table -- the execution trace.',
+      'leanVM runs a program step by step, recording the machine state at every cycle. Each cycle captures the program counter (pc), frame pointer (fp), three address-value pairs (A, B, C), and an instruction selector. With up to 2^25 rows and 20 committed base-field columns per cycle, the full trace forms a large matrix over the KoalaBear field.',
   },
   {
     title: 'Transition Constraints',
     description:
-      'For a trace to be valid, each row must follow from the previous row according to the rules of the machine. For example: if the instruction is "ADD A, B → C", then the constraint is C_next = A + B. These constraints are polynomial equations over adjacent rows.',
+      'For a trace to be valid, each row must follow from the previous row according to the leanISA rules. For ADD instructions, the constraint is val_B - (val_A + val_C) = 0. For MUL, it is val_B - val_A * val_C = 0. These are combined with instruction selector bits into degree-5 AIR transition constraints. The last row is paired with itself (the "wrapping pair" trick) so no special boundary logic is needed.',
   },
   {
     title: 'Encoding as Polynomials',
     description:
-      'We take each column of the trace and find the unique polynomial of degree < T (where T is the number of steps) that passes through all the column values. Now the trace IS a set of polynomials, and the transition constraints become polynomial identities that must hold at every step.',
+      'Each of the 20 committed columns becomes a multilinear polynomial. With 2^25 rows, each polynomial has 25 variables. These column polynomials are then "stacked" via simple stacking into a single large polynomial, which is committed using WHIR\'s multilinear polynomial commitment scheme.',
   },
   {
     title: 'From Polynomials to Proximity Testing',
     description:
-      'The prover sends these polynomials (as evaluations over a large domain) to the verifier. The verifier needs to check: are these evaluations actually close to low-degree polynomials? This is exactly the proximity testing problem that FRI, STIR, and WHIR solve.',
+      'leanVM produces these column polynomials from the execution of signature verification programs. The prover commits them via WHIR, which tests their proximity to valid low-degree (multilinear) polynomials. If the polynomials pass WHIR\'s proximity test and satisfy the AIR constraints, the verifier is convinced the computation was correct -- without re-executing it.',
   },
 ];
 
@@ -50,7 +57,7 @@ export function S2_FromCodeToPolynomials() {
       id="code-to-polynomials"
       number={2}
       title="From Code to Polynomials"
-      subtitle="How a program's execution becomes polynomial equations that we can prove."
+      subtitle="How leanVM turns a program's execution into polynomial equations that WHIR can prove."
     >
       <h3 id="arithmetization" className="font-heading text-xl font-semibold text-text mb-3">
         Arithmetization
@@ -58,22 +65,28 @@ export function S2_FromCodeToPolynomials() {
       <p>
         Before we can use polynomial proximity testing (the thing WHIR does), we need to understand
         how a <em>computation</em> becomes <em>polynomials</em> in the first place. This is the
-        "arithmetization" step -- it's how the real world connects to the abstract math.
+        "arithmetization" step. In <strong>leanVM</strong> -- a minimal zkVM designed for
+        post-quantum signature aggregation on Ethereum -- arithmetization turns the execution of
+        signature verification into polynomials over the KoalaBear field{' '}
+        <InlineMath tex="p = 2^{31} - 2^{24} + 1" />.
       </p>
 
       <h3 id="run-the-program" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
         Step 1: Run the Program, Record Everything
       </h3>
       <p>
-        Consider a simple program that checks whether a hash matches an expected value.
-        When we run it, we record the machine's state at every step in an{' '}
-        <strong>execution trace</strong>:
+        Consider a leanVM function (based on Example 2.1 from the leanVM paper) that asserts{' '}
+        <InlineMath tex="x < 10" />, computes <InlineMath tex="z = x \cdot y + 100" />,
+        and asserts <InlineMath tex="z < 1000" />.
+        When we run it, leanVM records the machine's state at every cycle in an{' '}
+        <strong>execution trace</strong>. The leanISA has just four core instructions -- DEREF, ADD,
+        MUL, and JUMP -- plus precompiles for POSEIDON2 and extension field operations:
       </p>
 
       {/* Code block */}
       <div className="bg-bg-card border border-border rounded-lg my-6 overflow-hidden">
         <div className="text-xs text-text-muted px-4 py-2 border-b border-border-light bg-border-light/30 font-mono">
-          pseudocode
+          leanVM pseudocode
         </div>
         <pre className="px-4 py-3 text-sm font-mono text-text overflow-x-auto leading-relaxed">
           {PROGRAM_CODE}
@@ -85,12 +98,16 @@ export function S2_FromCodeToPolynomials() {
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b-2 border-border">
-              <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Step</th>
-              <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">PC</th>
-              <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Reg A</th>
-              <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Reg B</th>
-              <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Reg C</th>
-              <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Operation</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">Step</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">PC</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">FP</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">addr_A</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">val_A</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">addr_B</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">val_B</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">addr_C</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">val_C</th>
+              <th className="text-left py-2 px-2 font-heading font-semibold text-text-muted text-xs">Instr</th>
             </tr>
           </thead>
           <tbody>
@@ -103,12 +120,16 @@ export function S2_FromCodeToPolynomials() {
                 onMouseEnter={() => setHighlightedRow(row.step)}
                 onMouseLeave={() => setHighlightedRow(null)}
               >
-                <td className="py-2 px-3 font-mono text-text-muted">{row.step}</td>
-                <td className="py-2 px-3 font-mono">{row.pc}</td>
-                <td className="py-2 px-3 font-mono">{row.reg_a}</td>
-                <td className="py-2 px-3 font-mono">{row.reg_b}</td>
-                <td className="py-2 px-3 font-mono">{row.reg_c}</td>
-                <td className="py-2 px-3 font-mono text-xs">{row.op}</td>
+                <td className="py-2 px-2 font-mono text-text-muted">{row.step}</td>
+                <td className="py-2 px-2 font-mono">{row.pc}</td>
+                <td className="py-2 px-2 font-mono">{row.fp}</td>
+                <td className="py-2 px-2 font-mono">{row.addr_a}</td>
+                <td className="py-2 px-2 font-mono">{row.val_a}</td>
+                <td className="py-2 px-2 font-mono">{row.addr_b}</td>
+                <td className="py-2 px-2 font-mono">{row.val_b}</td>
+                <td className="py-2 px-2 font-mono">{row.addr_c}</td>
+                <td className="py-2 px-2 font-mono">{row.val_c}</td>
+                <td className="py-2 px-2 font-mono text-xs">{row.instr}</td>
               </tr>
             ))}
           </tbody>
@@ -133,7 +154,8 @@ export function S2_FromCodeToPolynomials() {
       </AnimatePresence>
 
       <p className="text-sm text-text-muted italic">
-        Hover over any row to see what happens at that step.
+        Hover over any row to see what happens at that cycle. This table shows a simplified
+        subset of leanVM's 20 committed columns per cycle.
       </p>
 
       {/* Step 2: Columns become polynomials */}
@@ -141,33 +163,35 @@ export function S2_FromCodeToPolynomials() {
         Step 2: Columns Become Polynomials
       </h3>
       <p>
-        Each column of the trace is a sequence of values. We can find the unique polynomial
-        that passes through all the points{' '}
-        <InlineMath tex="(0, v_0), (1, v_1), \ldots, (T{-}1, v_{T-1})" />.
-        For example, the "Reg B" column has values <InlineMath tex="[0, 7, 7, 7, 7]" />,
-        and there's a polynomial <InlineMath tex="p_B(x)" /> of degree {`< ${TRACE_ROWS.length}`} that
-        exactly encodes these values.
+        Each column of the trace is a sequence of field values. In leanVM, each of the{' '}
+        <strong>20 committed columns</strong> becomes a <strong>multilinear polynomial</strong>.
+        With up to <InlineMath tex="2^{25}" /> rows, each polynomial has 25 variables.
+        These column polynomials are then "stacked" into a single large polynomial committed
+        via WHIR's multilinear polynomial commitment scheme.
+      </p>
+      <p className="mt-2">
+        Here are three columns from our example trace, each encoded as a polynomial:
       </p>
 
       <div className="my-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { name: 'Reg A', values: TRACE_ROWS.map(r => r.reg_a), color: '#1a365d', tex: 'p_A(x)' },
-          { name: 'Reg B', values: TRACE_ROWS.map(r => r.reg_b), color: '#8b4513', tex: 'p_B(x)' },
-          { name: 'Reg C', values: TRACE_ROWS.map(r => r.reg_c), color: '#2f855a', tex: 'p_C(x)' },
+          { name: 'PC', values: TRACE_ROWS.map(r => r.pc), color: '#1a365d', tex: 'p_{\\mathrm{pc}}(x)' },
+          { name: 'val_A', values: TRACE_ROWS.map(r => r.val_a), color: '#8b4513', tex: 'p_{\\nu_A}(x)' },
+          { name: 'val_B', values: TRACE_ROWS.map(r => r.val_b), color: '#2f855a', tex: 'p_{\\nu_B}(x)' },
         ].map((col) => (
           <div key={col.name} className="bg-bg-card border border-border rounded-lg p-4">
             <div className="font-heading font-semibold text-sm mb-2" style={{ color: col.color }}>
               {col.name} → <InlineMath tex={col.tex} />
             </div>
             {/* Mini SVG chart */}
-            <svg viewBox="0 0 160 80" className="w-full h-20">
+            <svg viewBox="0 0 200 80" className="w-full h-20">
               {/* Grid lines */}
-              {[0, 1, 2, 3, 4].map((i) => (
+              {TRACE_ROWS.map((_, i) => (
                 <line
                   key={i}
-                  x1={20 + i * 32}
+                  x1={12 + i * 20}
                   y1={8}
-                  x2={20 + i * 32}
+                  x2={12 + i * 20}
                   y2={72}
                   stroke="#e0dcd4"
                   strokeWidth={0.5}
@@ -176,13 +200,13 @@ export function S2_FromCodeToPolynomials() {
               {/* Points and connecting line */}
               {col.values.map((v, i) => {
                 const maxVal = Math.max(...col.values, 1);
-                const x = 20 + i * 32;
+                const x = 12 + i * 20;
                 const y = 68 - (v / Math.max(maxVal, 1)) * 56;
                 return (
                   <g key={i}>
                     {i > 0 && (
                       <line
-                        x1={20 + (i - 1) * 32}
+                        x1={12 + (i - 1) * 20}
                         y1={68 - (col.values[i - 1] / Math.max(maxVal, 1)) * 56}
                         x2={x}
                         y2={y}
@@ -191,8 +215,8 @@ export function S2_FromCodeToPolynomials() {
                         opacity={0.4}
                       />
                     )}
-                    <circle cx={x} cy={y} r={3.5} fill={col.color} />
-                    <text x={x} y={y - 8} textAnchor="middle" className="text-[9px]" fill="#6b6375">
+                    <circle cx={x} cy={y} r={3} fill={col.color} />
+                    <text x={x} y={y - 6} textAnchor="middle" className="text-[7px]" fill="#6b6375">
                       {v}
                     </text>
                   </g>
@@ -200,19 +224,19 @@ export function S2_FromCodeToPolynomials() {
               })}
               {/* X-axis labels */}
               {col.values.map((_, i) => (
-                <text key={i} x={20 + i * 32} y={79} textAnchor="middle" className="text-[8px]" fill="#6b6375">
+                <text key={i} x={12 + i * 20} y={79} textAnchor="middle" className="text-[7px]" fill="#6b6375">
                   {i}
                 </text>
               ))}
             </svg>
             <p className="text-xs text-text-muted text-center mt-1">
-              Values: [{col.values.join(', ')}]
+              [{col.values.join(', ')}]
             </p>
           </div>
         ))}
       </div>
 
-      <MathBlock tex="p_A(x), \; p_B(x), \; p_C(x) \quad \text{are polynomials of degree} < T = 5" />
+      <MathBlock tex="p_{\mathrm{pc}}(x), \; p_{\nu_A}(x), \; p_{\nu_B}(x), \; \ldots \quad \text{— 20 multilinear polys, each with 25 variables over } \mathbb{F}_p" />
 
       {/* Step 3: Constraints become polynomial identities */}
       <h3 id="constraints-become-identities" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
@@ -220,24 +244,35 @@ export function S2_FromCodeToPolynomials() {
       </h3>
       <p className="mb-4">
         A valid execution trace isn't just any table of numbers -- each row must correctly follow from
-        the previous row according to the instruction being executed. These rules become{' '}
-        <strong>polynomial constraints</strong>:
+        the previous row according to the leanISA. These rules become{' '}
+        <strong>AIR (Algebraic Intermediate Representation) constraints</strong>:
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-4">
         <p className="text-sm text-text-muted mb-3">
-          For example, at the "EQ" instruction (step 3), the constraint is:
+          leanVM's core constraints for each instruction type:
         </p>
-        <MathBlock tex="p_C(3) = \begin{cases} 1 & \text{if } p_B(2) = p_C(2) \\ 0 & \text{otherwise} \end{cases}" />
-        <p className="text-sm text-text-muted mt-3">
-          More generally, for every pair of consecutive steps, there's a polynomial equation that
-          must hold. If we collect all these transition constraints, we get a system of polynomial
-          identities that <em>completely characterizes</em> a valid execution.
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-text">ADD constraint:</p>
+            <MathBlock tex="\nu_B - (\nu_A + \nu_C) = 0" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text">MUL constraint:</p>
+            <MathBlock tex="\nu_B - \nu_A \cdot \nu_C = 0" />
+          </div>
+        </div>
+        <p className="text-sm text-text-muted mt-4">
+          These per-instruction constraints are combined with instruction selector bits into{' '}
+          <strong>degree-5 transition constraints</strong> over the execution table
+          (and degree-6 over the extension op table). A "wrapping pair" trick pairs the last row
+          of the trace with itself, so no special boundary logic is needed -- every consecutive pair
+          of rows satisfies the same polynomial identity.
         </p>
       </div>
 
       <p>
-        The key insight is this: checking "did this program execute correctly?" reduces to checking
+        The key insight is this: checking "did this leanVM program execute correctly?" reduces to checking
         "do these polynomials satisfy certain algebraic relationships?"
       </p>
 
@@ -277,18 +312,18 @@ export function S2_FromCodeToPolynomials() {
             {step === 0 && (
               <div className="flex items-center justify-center gap-3">
                 <div className="bg-bg border border-border-light rounded p-3 text-center">
-                  <div className="text-xs text-text-muted mb-1">Program</div>
-                  <div className="font-mono text-sm">checkHash()</div>
+                  <div className="text-xs text-text-muted mb-1">leanVM Program</div>
+                  <div className="font-mono text-sm">checked_mul_add()</div>
                 </div>
                 <div className="text-text-muted">→</div>
                 <div className="bg-bg border border-border-light rounded p-3 text-center">
-                  <div className="text-xs text-text-muted mb-1">Run step by step</div>
-                  <div className="font-mono text-sm">T = {TRACE_ROWS.length} steps</div>
+                  <div className="text-xs text-text-muted mb-1">Run cycle by cycle</div>
+                  <div className="font-mono text-sm">T = {TRACE_ROWS.length} cycles</div>
                 </div>
                 <div className="text-text-muted">→</div>
                 <div className="bg-sienna/10 border border-sienna/30 rounded p-3 text-center">
                   <div className="text-xs text-sienna mb-1">Execution Trace</div>
-                  <div className="font-mono text-sm">{TRACE_ROWS.length} × 5 table</div>
+                  <div className="font-mono text-sm">{TRACE_ROWS.length} × 20 table</div>
                 </div>
               </div>
             )}
@@ -297,24 +332,25 @@ export function S2_FromCodeToPolynomials() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-mono bg-bg border border-border-light rounded px-2 py-1 text-xs">Row i</span>
-                  <span className="text-text-muted">+ instruction →</span>
+                  <span className="text-text-muted">+ instruction selector →</span>
                   <span className="font-mono bg-bg border border-border-light rounded px-2 py-1 text-xs">Row i+1</span>
                 </div>
                 <div className="text-xs text-text-muted mt-2 space-y-1">
-                  <div>If <span className="font-mono">op = LOAD</span>: <InlineMath tex="A_{i+1} = \text{input}" /></div>
-                  <div>If <span className="font-mono">op = HASH</span>: <InlineMath tex="B_{i+1} = H(A_i)" /></div>
-                  <div>If <span className="font-mono">op = EQ</span>: <InlineMath tex="C_{i+1} = (B_i = C_i \;?\; 1 : 0)" /></div>
+                  <div>If <span className="font-mono">ADD</span>: <InlineMath tex="\nu_B - (\nu_A + \nu_C) = 0" /></div>
+                  <div>If <span className="font-mono">MUL</span>: <InlineMath tex="\nu_B - \nu_A \cdot \nu_C = 0" /></div>
+                  <div>If <span className="font-mono">DEREF</span>: memory read consistency via logup</div>
+                  <div>If <span className="font-mono">JUMP</span>: <InlineMath tex="\mathrm{pc}' = \nu_A" /></div>
                 </div>
               </div>
             )}
 
             {step === 2 && (
               <div className="flex items-center justify-center gap-3 flex-wrap">
-                {['p_A(x)', 'p_B(x)', 'p_C(x)'].map((p, i) => (
+                {['p_{\\mathrm{pc}}', 'p_{\\nu_A}', 'p_{\\nu_B}', '\\ldots'].map((p, i) => (
                   <div key={p} className="bg-bg border border-border-light rounded p-3 text-center">
-                    <div className="text-xs text-text-muted mb-1">Column {['A', 'B', 'C'][i]}</div>
+                    <div className="text-xs text-text-muted mb-1">{i < 3 ? `Column ${i + 1}` : '20 total'}</div>
                     <InlineMath tex={p} />
-                    <div className="text-xs text-text-muted mt-1">degree {'<'} {TRACE_ROWS.length}</div>
+                    <div className="text-xs text-text-muted mt-1">25 variables</div>
                   </div>
                 ))}
               </div>
@@ -323,18 +359,18 @@ export function S2_FromCodeToPolynomials() {
             {step === 3 && (
               <div className="flex items-center justify-center gap-3">
                 <div className="bg-bg border border-border-light rounded p-3 text-center">
-                  <div className="text-xs text-text-muted mb-1">Polynomials</div>
-                  <InlineMath tex="p_A, p_B, p_C" />
+                  <div className="text-xs text-text-muted mb-1">Signature verification</div>
+                  <div className="font-mono text-xs">leanVM trace</div>
                 </div>
                 <div className="text-text-muted">→</div>
                 <div className="bg-bg border border-border-light rounded p-3 text-center">
-                  <div className="text-xs text-text-muted mb-1">Evaluate on large domain</div>
-                  <InlineMath tex="\mathcal{L}" />
+                  <div className="text-xs text-text-muted mb-1">Stack into one poly</div>
+                  <InlineMath tex="\tilde{f}" />
                 </div>
                 <div className="text-text-muted">→</div>
                 <div className="bg-sienna/10 border border-sienna/30 rounded p-3 text-center">
-                  <div className="text-xs text-sienna mb-1">Proximity test</div>
-                  <div className="text-xs">Are these close to<br/>low-degree polynomials?</div>
+                  <div className="text-xs text-sienna mb-1">WHIR proximity test</div>
+                  <div className="text-xs">Close to multilinear?</div>
                 </div>
               </div>
             )}
@@ -348,14 +384,15 @@ export function S2_FromCodeToPolynomials() {
           Why This Matters for WHIR
         </h4>
         <p className="text-sm text-text-muted mb-3">
-          This pipeline -- code → execution trace → polynomials → proximity testing -- is how
-          every STARK-based proof system works. The arithmetization step produces polynomials
-          that the prover evaluates over a domain and sends to the verifier. The verifier's job
+          This is exactly how leanVM works end to end: signature verification programs are executed
+          on the leanISA, producing an execution trace with up to{' '}
+          <InlineMath tex="2^{25}" /> rows and 20 columns. Each column becomes a multilinear
+          polynomial, and the polynomials are stacked and committed via WHIR. The verifier's job
           is then to check:
         </p>
         <ol className="list-decimal list-inside text-sm text-text-muted space-y-1 mb-3">
-          <li>Are the evaluations close to a valid low-degree polynomial? <strong>(proximity testing)</strong></li>
-          <li>Do the polynomials satisfy the transition constraints? <strong>(constraint checking)</strong></li>
+          <li>Are the committed evaluations close to a valid multilinear polynomial? <strong>(proximity testing)</strong></li>
+          <li>Do the polynomials satisfy the degree-5 AIR transition constraints? <strong>(constraint checking)</strong></li>
         </ol>
         <p className="text-sm text-text-muted">
           WHIR is special because it handles <em>both</em> of these in one shot through{' '}

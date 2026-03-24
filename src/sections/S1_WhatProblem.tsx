@@ -9,14 +9,14 @@ const stages = [
     label: 'Computation',
     color: '#1a365d',
     description:
-      'The starting point: a computation someone performed. For example, "I verified 10,000 post-quantum signatures and they are all valid." The computation could be enormous -- millions of hash evaluations per signature, multiplied by thousands of signatures -- but the prover wants to convince everyone the result is correct without making them redo the entire thing.',
+      'leanVM executes a program that verifies leanXMSS signatures. The execution trace records every step: ADD, MUL, DEREF, JUMP instructions plus Poseidon2 hashes. A batch of 2,500 signatures produces millions of rows — but the prover wants to convince everyone the result is correct without making them redo the entire thing.',
   },
   {
     id: 'piop',
     label: 'Polynomial IOP',
     color: '#1a365d',
     description:
-      'The computation is encoded as a set of polynomial equations. Instead of checking "did you run this program correctly?", we now ask "do these polynomials satisfy certain relationships?" This is a powerful transformation: polynomial math gives us algebraic structure we can exploit for efficiency.',
+      'The execution trace is encoded as multilinear polynomials over the KoalaBear field. leanVM\'s AIR constraints — degree-5 transition polynomials between consecutive rows — become polynomial equations. Instead of checking "did leanVM run this program correctly?", we now ask "do these polynomials satisfy certain relationships?" Multiple tables (execution, Poseidon2, extension op) are stacked into a single commitment via WHIR\'s simple stacking technique.',
   },
   {
     id: 'iopp',
@@ -24,14 +24,14 @@ const stages = [
     highlight: true,
     color: '#8b4513',
     description:
-      'This is where WHIR fits in. We need to verify that a function the prover sends is "close" to a valid polynomial of low degree. This is called proximity testing. Rather than reading the entire function (which could be huge), WHIR uses a clever combination of sumcheck and folding to test proximity by reading only a tiny fraction of the data.',
+      'This is where WHIR fits in. leanVM uses WHIR — not FRI or STIR — as its polynomial commitment scheme (multilinear PCS). We need to verify that the committed polynomials are "close" to valid low-degree polynomials. Rather than reading the entire function (which could be huge), WHIR uses a clever combination of sumcheck and folding to test proximity by reading only a tiny fraction of the data. WHIR\'s super-fast verification is what makes recursive aggregation practical.',
   },
   {
     id: 'snarg',
     label: 'SNARG',
     color: '#1a365d',
     description:
-      'The final product: a Succinct Non-interactive ARGument. This is a short proof (a few hundred kilobytes) that anyone can verify quickly (under a millisecond) without any interaction with the prover. The "succinct" part is key -- the proof is exponentially shorter than the original computation.',
+      'The final product: a Succinct Non-interactive ARGument. This is a short proof that anyone can verify quickly without any interaction with the prover. For leanVM, this means thousands of leanXMSS signature verifications are compressed into a single proof that Ethereum validators check in under a millisecond — replacing the enormous cost of verifying each hash-based signature individually.',
   },
 ];
 
@@ -51,21 +51,29 @@ export function S1_WhatProblem() {
       id="problem"
       number={1}
       title="What Problem Does WHIR Solve?"
-      subtitle="From computations to succinct proofs: where WHIR fits in the pipeline."
+      subtitle="From computations to succinct proofs: where WHIR fits in leanVM's pipeline."
     >
       <h3 id="snargs-pipeline" className="font-heading text-xl font-semibold text-text mb-3">
         SNARGs and the Pipeline
       </h3>
       <p>
-        Imagine a blockchain needs to verify thousands of digital signatures every block. Today,
-        BLS signatures can be aggregated cheaply -- but BLS is not quantum-resistant. Post-quantum
-        alternatives like hash-based signatures (XMSS, SPHINCS+) are secure, but each one is large
-        and expensive to verify on-chain. What if you could compress all those signature checks into
-        a single, tiny proof that any node verifies in under a millisecond?
+        Ethereum validators currently use BLS signatures for consensus attestations. BLS allows
+        cheap aggregation — thousands of signatures compress into one — but BLS is{' '}
+        <strong>not quantum-resistant</strong>. When large-scale quantum computers arrive, BLS
+        signatures will be forgeable, breaking Ethereum's consensus security.
       </p>
       <p className="mt-3">
-        This is the kind of problem that <strong>SNARGs</strong> solve -- and WHIR is a key building
-        block that makes the verifier exceptionally fast.
+        The post-quantum alternative is <strong>leanXMSS</strong>, a hash-based signature scheme
+        that is secure against quantum attacks. But leanXMSS signatures are large (several KB each)
+        and expensive to verify — each requires thousands of hash evaluations. With no native
+        aggregation, verifying <InlineMath tex="N" /> signatures costs <InlineMath tex="O(N)" /> work.
+        For Ethereum's 800,000+ validators, this is prohibitive.
+      </p>
+      <p className="mt-3">
+        <strong>leanVM</strong> solves this. It is a minimal zkVM that aggregates thousands of
+        leanXMSS signatures into a single compact proof using a hash-based SNARG. WHIR is the
+        polynomial commitment scheme inside leanVM that makes verification fast enough for on-chain
+        checking and recursive proof composition.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
@@ -90,7 +98,8 @@ export function S1_WhatProblem() {
 
       <p>
         Building a SNARG involves a pipeline of transformations. Each stage converts one kind of
-        problem into another, until we arrive at a short, easily-checked proof. Click each stage
+        problem into another, until we arrive at a short, easily-checked proof. In leanVM, this
+        pipeline turns leanXMSS signature verifications into a compact proof. Click each stage
         below to learn more:
       </p>
 
@@ -214,10 +223,11 @@ export function S1_WhatProblem() {
       </h3>
       <p>
         At the heart of every proof system are two parties: the <strong>Prover</strong> and
-        the <strong>Verifier</strong>. The prover has done some computation and wants to convince
-        the verifier that the result is correct. The prover is powerful (can spend time and memory)
-        but the verifier should be <em>fast</em> -- ideally doing far less work than the
-        original computation.
+        the <strong>Verifier</strong>. In leanVM's architecture, the prover runs the full
+        signature verification computation off-chain — executing ADD, MUL, DEREF, JUMP instructions
+        and Poseidon2 hashes over the KoalaBear field — and produces a compact proof. The verifier
+        (an Ethereum smart contract or another recursive proof layer) checks the proof quickly,
+        doing far less work than the original computation.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-4 my-6">
@@ -226,8 +236,9 @@ export function S1_WhatProblem() {
             Prover
           </div>
           <p className="text-sm text-text-muted">
-            Has the data and the computation. Willing to do heavy work to generate a proof.
-            Might be dishonest -- tries to convince the verifier of false claims.
+            Runs leanVM to verify a batch of leanXMSS signatures. Generates an execution trace
+            (up to <InlineMath tex="2^{25}" /> rows, 20 columns), commits it via WHIR, and
+            produces a proof. Might be dishonest — tries to convince the verifier of false claims.
           </p>
         </div>
         <div className="flex-1 bg-bg-card border border-border rounded-lg p-4">
@@ -235,8 +246,9 @@ export function S1_WhatProblem() {
             Verifier
           </div>
           <p className="text-sm text-text-muted">
-            Wants to check the proof quickly. Must catch cheating provers with high
-            probability while accepting honest provers.
+            Checks the proof on-chain or inside a recursive circuit. Must catch cheating provers
+            with high probability while accepting honest provers. WHIR's fast verification keeps
+            this cost minimal.
           </p>
         </div>
       </div>
@@ -248,48 +260,57 @@ export function S1_WhatProblem() {
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-4">
         <div className="font-heading font-semibold text-lg text-text mb-3">
-          Example: Post-Quantum Signature Aggregation
+          Example: leanVM's Post-Quantum Signature Aggregation
         </div>
         <p className="text-sm text-text-muted mb-3">
           Ethereum currently relies on BLS signatures for validator attestations. BLS allows cheap
-          aggregation -- thousands of signatures compress into one -- but BLS is broken by quantum
-          computers. The leading post-quantum alternatives are <strong>hash-based signatures</strong>{' '}
-          (XMSS, SPHINCS+), which are secure but have a problem:
+          aggregation — thousands of signatures compress into one — but BLS is broken by quantum
+          computers. The post-quantum replacement is <strong>leanXMSS</strong>, a hash-based
+          signature scheme that is quantum-resistant but has a problem:
         </p>
         <ul className="list-disc list-inside text-sm text-text-muted space-y-1 mb-4">
-          <li>Each signature is 1-40 KB (vs. 48 bytes for BLS)</li>
+          <li>Each leanXMSS signature is several KB (vs. 48 bytes for BLS)</li>
           <li>Verification requires thousands of hash evaluations per signature</li>
-          <li>No native aggregation -- verifying <InlineMath tex="N" /> signatures costs <InlineMath tex="O(N)" /> work</li>
+          <li>No native aggregation — verifying <InlineMath tex="N" /> signatures costs <InlineMath tex="O(N)" /> work</li>
         </ul>
         <p className="text-sm text-text-muted mb-3">
-          A SNARG solves this: one prover checks all <InlineMath tex="N" /> signatures off-chain,
-          then produces a <strong>single compact proof</strong> (~60-100 KB) that every node verifies
-          in under a millisecond. The thousands of expensive hash-based signature checks are replaced
-          by one fast proof verification.
+          leanVM solves this with <strong>recursive aggregation</strong>. As described in the
+          leanVM paper, the process works as a tree: batches of ~2,500 leanXMSS signatures are
+          each verified by a leanVM instance that produces a proof. These proofs are then merged
+          pairwise up the tree until a single final proof remains. Each node verifies this one
+          compact proof instead of tens of thousands of individual signatures.
+        </p>
+        <p className="text-sm text-text-muted mb-3">
+          Under the hood, leanVM operates over the <strong>KoalaBear
+          field</strong> (<InlineMath tex="p = 2^{31} - 2^{24} + 1" />) and
+          uses <strong>Poseidon2</strong> as its hash function — chosen because its
+          cubing S-box <InlineMath tex="x \mapsto x^3" /> is efficient in this field.
+          WHIR serves as the multilinear polynomial commitment scheme, enabling "simple stacking"
+          where multiple polynomials from different tables are concatenated into one commitment.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
           <div className="flex-1 bg-bg border border-border-light rounded p-3">
-            <div className="text-xs font-semibold text-red mb-1">Without SNARG</div>
+            <div className="text-xs font-semibold text-red mb-1">Without leanVM</div>
             <p className="text-xs text-text-muted">
-              Every node verifies 10,000 hash-based signatures individually.
+              Every node verifies 10,000+ leanXMSS signatures individually.
               Costs millions of hash operations per block.
             </p>
           </div>
-          <div className="flex items-center justify-center text-text-muted text-lg">→</div>
+          <div className="flex items-center justify-center text-text-muted text-lg">&rarr;</div>
           <div className="flex-1 bg-bg border border-border-light rounded p-3">
-            <div className="text-xs font-semibold text-green mb-1">With SNARG (using WHIR)</div>
+            <div className="text-xs font-semibold text-green mb-1">With leanVM (using WHIR)</div>
             <p className="text-xs text-text-muted">
-              One prover generates a proof. Every node verifies it in ~400μs.
-              WHIR's fast verifier keeps on-chain costs minimal.
+              Provers aggregate signatures in a recursive tree. Every node verifies one final
+              proof in ~400us. WHIR's fast verifier keeps on-chain costs minimal.
             </p>
           </div>
         </div>
         <p className="text-xs text-text-muted mt-4 italic">
           WHIR is the component that makes the <em>verifier</em> fast. Its query complexity of{' '}
           <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot \log \frac{m}{k})" /> is what
-          enables verification in hundreds of microseconds rather than milliseconds -- critical
+          enables verification in hundreds of microseconds rather than milliseconds — critical
           when this cost is paid by every node in the network, or when verification happens
-          inside a recursive proof circuit.
+          inside a recursive proof circuit at each level of leanVM's aggregation tree.
         </p>
       </div>
 
@@ -300,7 +321,8 @@ export function S1_WhatProblem() {
       <p className="mb-4">
         WHIR didn't appear out of nowhere. It builds on a lineage of proof systems, each making
         different tradeoffs between proof size, prover speed, verifier speed, and trust assumptions.
-        Understanding where WHIR came from helps explain <em>why</em> it's designed the way it is.
+        Understanding where WHIR came from helps explain <em>why</em> leanVM chose it over
+        alternatives.
       </p>
 
       <div className="space-y-4 my-4">
@@ -320,10 +342,11 @@ export function S1_WhatProblem() {
                 It's based on elliptic curve pairings, which gives it remarkable succinctness.
               </p>
               <p className="text-sm text-text-muted mb-2">
-                <strong>The catch:</strong> Groth16 requires a <em>trusted setup</em> -- a ceremony
+                <strong>The catch:</strong> Groth16 requires a <em>trusted setup</em> — a ceremony
                 where secret randomness is generated and must be destroyed. If any participant keeps
                 the secret, they can forge proofs. It also relies on pairing-based cryptography,
-                which is <strong>not quantum-resistant</strong>.
+                which is <strong>not quantum-resistant</strong> — the very threat leanVM is
+                designed to address.
               </p>
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Tiny proofs</span>
@@ -347,7 +370,7 @@ export function S1_WhatProblem() {
               </div>
               <p className="text-sm text-text-muted mb-2">
                 FRI was a breakthrough: a proximity test for Reed-Solomon codes that uses only
-                hashing -- no elliptic curves, no pairings, no trusted setup. This makes it
+                hashing — no elliptic curves, no pairings, no trusted setup. This makes it
                 <strong> transparent</strong> (anyone can verify the setup) and
                 <strong> plausibly post-quantum secure</strong> (security relies only on
                 hash functions).
@@ -355,21 +378,23 @@ export function S1_WhatProblem() {
               <p className="text-sm text-text-muted mb-2">
                 FRI works by repeatedly <em>folding</em> a polynomial using random challenges,
                 halving the domain each round until the polynomial is small enough to check
-                directly. It powers STARKs, which are used in production systems like StarkNet
-                and zkSync.
+                directly. It powers STARKs and systems like Plonky3. However, FRI operates as a
+                univariate polynomial commitment scheme, requiring FFT-based evaluation domains.
               </p>
               <p className="text-sm text-text-muted">
-                <strong>The tradeoff:</strong> FRI has larger proofs (~150-250 KB) and slower
-                verification compared to Groth16. The verifier must make{' '}
-                <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot m)" /> queries -- notably
-                the <InlineMath tex="m" /> factor (number of variables) makes verification cost
-                grow with the problem size.
+                <strong>Why not for leanVM:</strong> FRI has larger proofs (~150-250 KB) and slower
+                verification. The verifier must make{' '}
+                <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot m)" /> queries — the
+                linear <InlineMath tex="m" /> factor makes verification cost grow with the problem
+                size. FRI also lacks a natural multilinear PCS mode, which leanVM needs for its
+                simple stacking technique.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">No trusted setup</span>
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Post-quantum</span>
                 <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Larger proofs</span>
                 <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Slower verification</span>
+                <span className="text-xs bg-red/10 text-red rounded-full px-2 py-0.5">Univariate only</span>
               </div>
             </div>
           </div>
@@ -393,7 +418,7 @@ export function S1_WhatProblem() {
               </p>
               <p className="text-sm text-text-muted mb-2">
                 This brought the query complexity down to{' '}
-                <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot \log \frac{m}{k})" /> --
+                <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot \log \frac{m}{k})" /> —
                 replacing FRI's linear <InlineMath tex="m" /> with a logarithmic{' '}
                 <InlineMath tex="\log m" />. STIR also matched proof sizes with the best known
                 schemes.
@@ -401,8 +426,9 @@ export function S1_WhatProblem() {
               <p className="text-sm text-text-muted">
                 <strong>What remained:</strong> STIR's verifier, while making fewer queries,
                 still did <InlineMath tex="O(\frac{\lambda^2}{k} \cdot 2^k)" /> field operations
-                per query -- the per-query cost was high, keeping total verification time
-                in the millisecond range.
+                per query — the per-query cost was high, keeping total verification time
+                in the millisecond range. Not fast enough for leanVM's recursive aggregation,
+                where verification happens inside the circuit at every tree level.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Fewer queries than FRI</span>
@@ -434,17 +460,21 @@ export function S1_WhatProblem() {
               <p className="text-sm text-text-muted mb-2">
                 The result: verification in <strong>hundreds of microseconds</strong> instead of
                 milliseconds. WHIR's verifier does{' '}
-                <InlineMath tex="O(q_{\text{WHIR}} \cdot (2^k + m))" /> field operations total --
+                <InlineMath tex="O(q_{\text{WHIR}} \cdot (2^k + m))" /> field operations total —
                 linear in the data it reads, with no field divisions required. This makes it the
                 fastest known verifier for proximity testing.
               </p>
-              <p className="text-sm text-text-muted">
-                WHIR also serves as a drop-in replacement for FRI, STIR, and BaseFold in any
-                system that uses polynomial commitment schemes via the BCS transformation.
+              <p className="text-sm text-text-muted mb-2">
+                <strong>Why leanVM chose WHIR:</strong> WHIR functions as a multilinear polynomial
+                commitment scheme, which enables leanVM's "simple stacking" — multiple multilinear
+                polynomials (from the execution table, Poseidon2 table, and extension op table) are
+                concatenated into one and committed via a single WHIR instance. No need for
+                univariate FFT-based commitment like FRI or Plonky3. Being hash-based, it is
+                post-quantum secure and requires no trusted setup.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Fastest verification</span>
-                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Same queries as STIR</span>
+                <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Multilinear PCS</span>
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">No trusted setup</span>
                 <span className="text-xs bg-green/10 text-green rounded-full px-2 py-0.5">Post-quantum</span>
               </div>
@@ -455,8 +485,8 @@ export function S1_WhatProblem() {
 
       <p className="text-sm text-text-muted mt-6 italic">
         In the sections that follow, we will build up the ideas behind WHIR step by step:
-        Reed-Solomon codes, constrained codes, the sumcheck protocol, and folding -- all
-        combining into a protocol with the fastest known verification time for proximity testing.
+        Reed-Solomon codes, constrained codes, the sumcheck protocol, and folding — all
+        combining into the protocol that powers leanVM's polynomial commitment layer.
       </p>
     </Section>
   );

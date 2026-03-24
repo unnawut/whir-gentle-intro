@@ -79,11 +79,15 @@ export function S9_Performance() {
         Overview
       </h3>
       <p>
-        WHIR achieves the <strong>fastest verification time</strong> among comparable
-        proximity testing protocols. Its key advantage is that the verifier's work is
-        dominated by reading the proof and hashing -- there is very little algebraic
-        computation. This makes WHIR especially attractive for settings where verification
-        cost matters most: on-chain verification and recursive proof composition.
+        leanVM chose WHIR specifically because of its verification speed. For recursive
+        aggregation, the WHIR verifier runs <em>inside</em> the next proof — so every
+        microsecond of verification time multiplies across recursion levels. WHIR
+        achieves the <strong>fastest verification time</strong> among comparable proximity
+        testing protocols: ~400{'\u00b5'}s at 100-bit security vs FRI's ~1.5ms, meaning the
+        recursive circuit is roughly 4x smaller. Its key advantage is that the verifier's
+        work is dominated by reading the proof and hashing — there is very little algebraic
+        computation. On-chain, WHIR's low query complexity means fewer Merkle path
+        openings and lower gas costs for Ethereum validators.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
@@ -117,7 +121,8 @@ export function S9_Performance() {
         Benchmark Comparison
       </h3>
       <p className="mb-4">
-        Benchmarks for degree <InlineMath tex="2^{22}" /> polynomials at rate{' '}
+        These benchmarks show why leanVM uses WHIR rather than FRI or BaseFold.
+        Measured for degree <InlineMath tex="2^{22}" /> polynomials at rate{' '}
         <InlineMath tex="\rho = 1/2" />. Data from the WHIR paper (Section 8).
       </p>
 
@@ -255,8 +260,10 @@ export function S9_Performance() {
           </div>
           <p className="text-sm text-text-muted">
             WHIR verification takes approximately <strong>400{'\u00b5'}s</strong> at 100-bit
-            security -- roughly 4x faster than FRI and 2x faster than STIR. This translates
-            directly to lower gas costs on Ethereum (estimated ~850k gas).
+            security — roughly 4x faster than FRI and 2x faster than STIR. This enables
+            efficient recursive aggregation in leanVM: each level of the aggregation tree
+            runs the verifier inside the next proof, so faster verification directly shrinks
+            the recursive circuit.
           </p>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
@@ -265,7 +272,9 @@ export function S9_Performance() {
           </div>
           <p className="text-sm text-text-muted">
             Proof sizes are comparable to STIR (76 KiB at 100-bit security) and
-            significantly smaller than FRI (149 KiB) and BaseFold (564 KiB).
+            significantly smaller than FRI (149 KiB) and BaseFold (564 KiB). For leanVM,
+            smaller proofs mean less on-chain data for Ethereum validators to process,
+            reducing calldata costs in the aggregation contract.
           </p>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
@@ -273,19 +282,21 @@ export function S9_Performance() {
             No Trusted Setup
           </div>
           <p className="text-sm text-text-muted">
-            WHIR is hash-based -- it requires no trusted setup ceremony and no
-            pairing-friendly curves. It is plausibly post-quantum secure, depending only
-            on the collision resistance of the hash function.
+            WHIR is hash-based — it requires no trusted setup ceremony and no
+            pairing-friendly curves. This gives leanVM the same trust model as its
+            leanXMSS post-quantum signatures: security depends only on the collision
+            resistance of the hash function, making the entire system post-quantum secure.
           </p>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <div className="text-text font-heading font-semibold text-sm mb-2">
-            Recursive-Friendly
+            Native Multilinear Support
           </div>
           <p className="text-sm text-text-muted">
-            The verifier's simplicity (mostly hashing) makes WHIR ideal for recursive
-            proof composition. A faster inner verifier means a smaller outer circuit,
-            enabling practical incrementally verifiable computation.
+            WHIR works natively with multilinear polynomials, which allows leanVM's simple
+            stacking approach: multiple table polynomials (execution, Poseidon, extension ops)
+            are concatenated into one and committed via a single WHIR instance — no overhead
+            from univariate FFT commitment schemes.
           </p>
         </div>
       </div>
