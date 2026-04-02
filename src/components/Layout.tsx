@@ -11,11 +11,10 @@ export const SECTIONS = [
   },
   {
     id: 'problem',
-    label: 'What Problem Does WHIR Solve?',
+    label: 'What Are SNARGs and WHIR?',
     subs: [
-      { label: 'SNARGs and the Pipeline', id: 'snargs-pipeline' },
-      { label: 'The Prover-Verifier Model', id: 'prover-verifier-model' },
-      { label: 'Why Does Fast Verification Matter?', id: 'why-fast-verification' },
+      { label: 'What Are SNARGs?', id: 'what-are-snargs' },
+      { label: 'SNARG Pipeline and WHIR', id: 'snarg-pipeline' },
       { label: 'The Road to WHIR', id: 'road-to-whir' },
     ],
   },

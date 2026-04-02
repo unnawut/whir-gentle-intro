@@ -5,56 +5,61 @@ import { Math as InlineMath } from '../components/MathBlock';
 
 const stages = [
   {
-    id: 'computation',
-    label: 'Computation',
+    id: 'execution',
+    label: 'Execution',
     color: '#1a365d',
     description:
       'LeanMultisig executes a program that verifies leanSig signatures. The execution trace records every step: ADD, MUL, DEREF, JUMP instructions plus Poseidon2 hashes. A batch of 2,500 signatures produces millions of rows — but the prover wants to convince everyone the result is correct without making them redo the entire thing.',
   },
   {
-    id: 'piop',
-    label: 'Polynomial IOP',
+    id: 'arithmetization',
+    label: 'Arithmetization',
     color: '#1a365d',
     description:
-      'The execution trace is encoded as multilinear polynomials over the KoalaBear field. LeanMultisig\'s AIR constraints — degree-5 transition polynomials between consecutive rows — become polynomial equations. Instead of checking "did LeanMultisig run this program correctly?", we now ask "do these polynomials satisfy certain relationships?" Multiple tables (execution, Poseidon2, extension op) are stacked into a single commitment via WHIR\'s simple stacking technique.',
+      'The execution trace is encoded as multilinear polynomials over the KoalaBear field. LeanMultisig\'s AIR constraints — degree-5 transition polynomials between consecutive rows — become polynomial equations. Instead of checking "did leanMultisig run this program correctly?", we now ask "do these polynomials satisfy certain relationships?" Multiple tables (execution, Poseidon2, extension op) are stacked into a single commitment via WHIR\'s simple stacking technique.',
   },
   {
-    id: 'iopp',
-    label: 'IOP of Proximity',
+    id: 'pcs',
+    label: 'Polynomial Commitment',
     highlight: true,
     color: '#8b4513',
     description:
       'This is where WHIR fits in. LeanMultisig uses WHIR — not FRI or STIR — as its polynomial commitment scheme (multilinear PCS). We need to verify that the committed polynomials are "close" to valid low-degree polynomials. Rather than reading the entire function (which could be huge), WHIR uses a clever combination of sumcheck and folding to test proximity by reading only a tiny fraction of the data. WHIR\'s super-fast verification is what makes recursive aggregation practical.',
   },
   {
-    id: 'snarg',
-    label: 'SNARG',
+    id: 'composition',
+    label: 'Proof Composition',
     color: '#1a365d',
     description:
-      'The final product: a Succinct Non-interactive ARGument. This is a short proof that anyone can verify quickly without any interaction with the prover. For LeanMultisig, this means thousands of leanSig signature verifications are compressed into a single proof that Ethereum validators check in under a millisecond — replacing the enormous cost of verifying each hash-based signature individually.',
+      'The final product: a Succinct Non-interactive ARGument. This is a short proof that anyone can verify quickly without any interaction with the prover. For leanMultisig, this means thousands of leanSig signature verifications are compressed into a single proof that Ethereum validators check in under a millisecond — replacing the enormous cost of verifying each hash-based signature individually.',
   },
 ];
 
 export function S1_WhatProblem() {
   const [activeStage, setActiveStage] = useState<string | null>(null);
 
-  const boxWidth = 140;
-  const boxHeight = 52;
-  const gap = 36;
+  const boxWidth = 220;
+  const boxHeight = 40;
+  const gap = 44;
   const arrowLen = gap;
-  const totalWidth = stages.length * boxWidth + (stages.length - 1) * gap;
-  const svgWidth = totalWidth + 40;
-  const svgHeight = 110;
+  const svgWidth = boxWidth + 180;
+  const halfArrow = arrowLen / 2;
+  const topPad = 22 + halfArrow;
+  const bottomPad = halfArrow + 20;
+  const totalHeight = stages.length * boxHeight + (stages.length - 1) * gap;
+  const svgHeight = topPad + totalHeight + bottomPad;
+
+  const arrowLabels = ['Execution trace', 'Polynomials + AIR', 'Commitment'];
 
   return (
     <Section
       id="problem"
       number={1}
-      title="What Problem Does WHIR Solve?"
-      subtitle="From computations to succinct proofs: where WHIR fits in LeanMultisig's pipeline."
+      title="What Are SNARGs and WHIR?"
+      subtitle="WHIR is the polynomial commitment layer inside leanMultisig's SNARG — the component that makes verification fast enough for recursive proof composition."
     >
-      <h3 id="snargs-pipeline" className="font-heading text-xl font-semibold text-text mb-3">
-        SNARGs and the Pipeline
+      <h3 id="what-are-snargs" className="font-heading text-xl font-semibold text-text mb-3">
+        What Are SNARGs?
       </h3>
       <p>
         Ethereum validators currently use BLS signatures for consensus attestations. BLS allows
@@ -72,9 +77,8 @@ export function S1_WhatProblem() {
       </p>
       <p className="mt-3">
         <strong>LeanMultisig</strong> solves this. It is a minimal zkVM that aggregates thousands of
-        leanSig signatures into a single compact proof using a hash-based SNARG. WHIR is the
-        polynomial commitment scheme inside LeanMultisig that makes verification fast enough for on-chain
-        checking and recursive proof composition.
+        leanSig signatures into a single compact proof using a hash-based{' '}
+        <strong>SNARG</strong> — a <em>Succinct Non-interactive ARGument</em>.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
@@ -82,56 +86,136 @@ export function S1_WhatProblem() {
           What is a SNARG?
         </h3>
         <p className="text-sm text-text-muted mb-3">
-          A <strong>Succinct Non-interactive ARGument</strong> is a proof system where:
+          A SNARG is a proof system where:
         </p>
         <ul className="list-disc list-inside text-sm text-text-muted space-y-1">
           <li>
-            <strong>Succinct</strong> -- the proof is tiny compared to the computation
+            <strong>Succinct</strong> — the proof is tiny compared to the computation
           </li>
           <li>
-            <strong>Non-interactive</strong> -- the prover sends one message; no back-and-forth needed
+            <strong>Non-interactive</strong> — the prover sends one message; no back-and-forth needed
           </li>
           <li>
-            <strong>Argument</strong> -- security holds against computationally bounded provers
+            <strong>Argument</strong> — security holds against computationally bounded provers
           </li>
         </ul>
       </div>
 
+      <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
+        <h3 className="font-heading text-lg font-semibold text-navy mb-2">
+          SNARG vs SNARK vs STARK
+        </h3>
+        <p className="text-sm text-text-muted">
+          A <strong>SNARG</strong> is the broadest: any succinct non-interactive proof.
+        </p>
+        <p className="text-sm text-text-muted mt-3">
+          A <strong>SNARK</strong> (Succinct Non-interactive ARgument
+          of <em>Knowledge</em>) is a SNARG with a stronger guarantee — not only is the
+          statement true, but the prover actually "knows" a witness for it.
+        </p>
+        <p className="text-sm text-text-muted mt-3">
+          A <strong>STARK</strong> (Scalable Transparent ARgument of Knowledge) is a SNARK
+          that additionally requires <strong>no trusted setup</strong> — its security relies
+          only on hash functions, making it quantum-resistant.
+        </p>
+        <p className="text-sm text-text-muted mt-3">
+          In other words, all STARKs are SNARKs, and all SNARKs are SNARGs.
+        </p>
+        <p className="text-sm text-text-muted mt-3">
+          <strong>LeanMultisig's proof system is a STARK:</strong> it uses hash-based commitments
+          (Poseidon2 + Merkle trees) with no pairing-based trusted setup, which is exactly
+          what you want when defending against quantum attackers.
+        </p>
+      </div>
+
+      <h3 id="snarg-pipeline" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
+        SNARG Pipeline and WHIR
+      </h3>
       <p>
-        Building a SNARG involves a pipeline of transformations. Each stage converts one kind of
-        problem into another, until we arrive at a short, easily-checked proof. In LeanMultisig, this
-        pipeline turns leanSig signature verifications into a compact proof. Click each stage
-        below to learn more:
+        Building a SNARG involves a pipeline of stages. Each stage converts one kind of problem
+        into a simpler one, until we arrive at a short, easily-checked proof:
+      </p>
+      <ol className="list-decimal list-inside space-y-3 my-4">
+        <li>
+          <strong>Execution</strong> — takes a <em>program + inputs</em> (leanSig signatures),
+          produces an <em>execution trace</em> recording every step
+        </li>
+        <li>
+          <strong>Arithmetization</strong> — takes the <em>execution trace</em> (from step 1),
+          produces <em>polynomials + constraint equations</em> (an AIR) that encode
+          "the program ran correctly"
+        </li>
+        <li>
+          <strong>Polynomial commitment</strong> — takes the <em>polynomials</em> (from step 2),
+          produces a <em>compact commitment</em> the verifier can query without seeing
+          the full data. This is the <em>PCS</em> layer — and <strong><em>this is
+          where WHIR lives</em></strong>
+        </li>
+        <li>
+          <strong>Proof composition</strong> — takes the <em>commitment</em> (from step 3)
+          + <em>constraint equations</em> (from step 2), produces a <em>single
+          proof</em> that anyone can verify quickly
+        </li>
+      </ol>
+      <p>
+        WHIR's fast verification at step 3 is what makes <strong>recursive aggregation</strong> practical:
+        LeanMultisig can nest proofs inside proofs, merging thousands of signature checks into one
+        final proof small enough for on-chain verification.
+      </p>
+
+      <p>
+        In leanMultisig, this pipeline turns leanSig signature verifications into a compact proof.
+        Click each stage below to learn more:
       </p>
 
       {/* Pipeline SVG */}
-      <div className="my-8 overflow-x-auto">
+      <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
+      <div>
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="w-full max-w-[700px] mx-auto"
-          style={{ minWidth: 500 }}
+          className="w-full max-w-[400px] mx-auto"
         >
+          <defs>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Input label + arrow */}
+          <text
+            x={(svgWidth - boxWidth) / 2 + boxWidth / 2}
+            y={12}
+            textAnchor="middle"
+            className="text-[10px] italic"
+            fill="#6b6375"
+          >
+            Program + inputs
+          </text>
+          <line
+            x1={(svgWidth - boxWidth) / 2 + boxWidth / 2}
+            y1={20}
+            x2={(svgWidth - boxWidth) / 2 + boxWidth / 2}
+            y2={topPad - 8}
+            stroke="#6b6375"
+            strokeWidth={1.5}
+          />
+          <polygon
+            points={`${(svgWidth - boxWidth) / 2 + boxWidth / 2 - 4},${topPad - 8} ${(svgWidth - boxWidth) / 2 + boxWidth / 2 + 4},${topPad - 8} ${(svgWidth - boxWidth) / 2 + boxWidth / 2},${topPad}`}
+            fill="#6b6375"
+          />
+
           {stages.map((stage, i) => {
-            const x = 20 + i * (boxWidth + gap);
-            const y = 20;
+            const x = (svgWidth - boxWidth) / 2;
+            const y = topPad + i * (boxHeight + gap);
             const isHighlighted = stage.highlight;
             const isActive = activeStage === stage.id;
 
             return (
               <g key={stage.id}>
-                {/* Glow filter for IOPP */}
-                {isHighlighted && (
-                  <defs>
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="4" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                  </defs>
-                )}
-
                 {/* Box */}
                 <rect
                   x={x}
@@ -164,13 +248,13 @@ export function S1_WhatProblem() {
                 {/* "WHIR" badge */}
                 {isHighlighted && (
                   <text
-                    x={x + boxWidth / 2}
-                    y={y + boxHeight + 16}
-                    textAnchor="middle"
+                    x={x + boxWidth + 8}
+                    y={y + boxHeight / 2}
+                    dominantBaseline="central"
                     className="text-[10px] font-bold"
                     fill="#8b4513"
                   >
-                    WHIR fits here
+                    ← WHIR is here
                   </text>
                 )}
 
@@ -178,26 +262,67 @@ export function S1_WhatProblem() {
                 {i < stages.length - 1 && (
                   <g>
                     <line
-                      x1={x + boxWidth + 4}
-                      y1={y + boxHeight / 2}
-                      x2={x + boxWidth + arrowLen - 8}
-                      y2={y + boxHeight / 2}
+                      x1={x + boxWidth / 2}
+                      y1={y + boxHeight + 4}
+                      x2={x + boxWidth / 2}
+                      y2={y + boxHeight + arrowLen - 8}
                       stroke="#6b6375"
                       strokeWidth={1.5}
                     />
                     <polygon
-                      points={`${x + boxWidth + arrowLen - 8},${y + boxHeight / 2 - 4} ${x + boxWidth + arrowLen - 8},${y + boxHeight / 2 + 4} ${x + boxWidth + arrowLen},${y + boxHeight / 2}`}
+                      points={`${x + boxWidth / 2 - 4},${y + boxHeight + arrowLen - 8} ${x + boxWidth / 2 + 4},${y + boxHeight + arrowLen - 8} ${x + boxWidth / 2},${y + boxHeight + arrowLen}`}
                       fill="#6b6375"
                     />
+                    <text
+                      x={x + boxWidth / 2 + 12}
+                      y={y + boxHeight + arrowLen / 2 + 2}
+                      dominantBaseline="central"
+                      className="text-[9px] italic"
+                      fill="#6b6375"
+                    >
+                      {arrowLabels[i]}
+                    </text>
                   </g>
                 )}
               </g>
             );
           })}
+
+          {/* Output arrow + label */}
+          {(() => {
+            const cx = (svgWidth - boxWidth) / 2 + boxWidth / 2;
+            const lastBoxBottom = topPad + (stages.length - 1) * (boxHeight + gap) + boxHeight;
+            return (
+              <g>
+                <line
+                  x1={cx}
+                  y1={lastBoxBottom + 4}
+                  x2={cx}
+                  y2={lastBoxBottom + halfArrow - 8}
+                  stroke="#6b6375"
+                  strokeWidth={1.5}
+                />
+                <polygon
+                  points={`${cx - 4},${lastBoxBottom + halfArrow - 8} ${cx + 4},${lastBoxBottom + halfArrow - 8} ${cx},${lastBoxBottom + halfArrow}`}
+                  fill="#6b6375"
+                />
+                <text
+                  x={cx}
+                  y={lastBoxBottom + halfArrow + 14}
+                  textAnchor="middle"
+                  className="text-[10px] italic"
+                  fill="#6b6375"
+                >
+                  Succinct proof
+                </text>
+              </g>
+            );
+          })()}
         </svg>
       </div>
 
       {/* Description panel */}
+      <div className="mt-6" />
       <AnimatePresence mode="wait">
         {activeStage && (
           <motion.div
@@ -217,102 +342,6 @@ export function S1_WhatProblem() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Prover-Verifier model */}
-      <h3 id="prover-verifier-model" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
-        The Prover-Verifier Model
-      </h3>
-      <p>
-        At the heart of every proof system are two parties: the <strong>Prover</strong> and
-        the <strong>Verifier</strong>. In LeanMultisig's architecture, the prover runs the full
-        signature verification computation off-chain — executing ADD, MUL, DEREF, JUMP instructions
-        and Poseidon2 hashes over the KoalaBear field — and produces a compact proof. The verifier
-        (an Ethereum smart contract or another recursive proof layer) checks the proof quickly,
-        doing far less work than the original computation.
-      </p>
-
-      <div className="flex flex-col sm:flex-row gap-4 my-6">
-        <div className="flex-1 bg-bg-card border border-border rounded-lg p-4">
-          <div className="text-sienna font-heading font-semibold text-base mb-1">
-            Prover
-          </div>
-          <p className="text-sm text-text-muted">
-            Runs LeanMultisig to verify a batch of leanSig signatures. Generates an execution trace
-            (up to <InlineMath tex="2^{25}" /> rows, 20 columns), commits it via WHIR, and
-            produces a proof. Might be dishonest — tries to convince the verifier of false claims.
-          </p>
-        </div>
-        <div className="flex-1 bg-bg-card border border-border rounded-lg p-4">
-          <div className="text-navy font-heading font-semibold text-base mb-1">
-            Verifier
-          </div>
-          <p className="text-sm text-text-muted">
-            Checks the proof on-chain or inside a recursive circuit. Must catch cheating provers
-            with high probability while accepting honest provers. WHIR's fast verification keeps
-            this cost minimal.
-          </p>
-        </div>
-      </div>
-
-      {/* Why it matters */}
-      <h3 id="why-fast-verification" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
-        Why Does Fast Verification Matter?
-      </h3>
-
-      <div className="bg-bg-card border border-border rounded-lg p-5 my-4">
-        <div className="font-heading font-semibold text-lg text-text mb-3">
-          Example: LeanMultisig's Post-Quantum Signature Aggregation
-        </div>
-        <p className="text-sm text-text-muted mb-3">
-          Ethereum currently relies on BLS signatures for validator attestations. BLS allows cheap
-          aggregation — thousands of signatures compress into one — but BLS is broken by quantum
-          computers. The post-quantum replacement is <strong>leanSig</strong>, a hash-based
-          signature scheme that is quantum-resistant but has a problem:
-        </p>
-        <ul className="list-disc list-inside text-sm text-text-muted space-y-1 mb-4">
-          <li>Each leanSig signature is several KB (vs. 48 bytes for BLS)</li>
-          <li>Verification requires thousands of hash evaluations per signature</li>
-          <li>No native aggregation — verifying <InlineMath tex="N" /> signatures costs <InlineMath tex="O(N)" /> work</li>
-        </ul>
-        <p className="text-sm text-text-muted mb-3">
-          LeanMultisig solves this with <strong>recursive aggregation</strong>. As described in the
-          LeanMultisig paper, the process works as a tree: batches of ~2,500 leanSig signatures are
-          each verified by a LeanMultisig instance that produces a proof. These proofs are then merged
-          pairwise up the tree until a single final proof remains. Each node verifies this one
-          compact proof instead of tens of thousands of individual signatures.
-        </p>
-        <p className="text-sm text-text-muted mb-3">
-          Under the hood, LeanMultisig operates over the <strong>KoalaBear
-          field</strong> (<InlineMath tex="p = 2^{31} - 2^{24} + 1" />) and
-          uses <strong>Poseidon2</strong> as its hash function — chosen because its
-          cubing S-box <InlineMath tex="x \mapsto x^3" /> is efficient in this field.
-          WHIR serves as the multilinear polynomial commitment scheme, enabling "simple stacking"
-          where multiple polynomials from different tables are concatenated into one commitment.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 mt-4">
-          <div className="flex-1 bg-bg border border-border-light rounded p-3">
-            <div className="text-xs font-semibold text-red mb-1">Without LeanMultisig</div>
-            <p className="text-xs text-text-muted">
-              Every node verifies 10,000+ leanSig signatures individually.
-              Costs millions of hash operations per block.
-            </p>
-          </div>
-          <div className="flex items-center justify-center text-text-muted text-lg">&rarr;</div>
-          <div className="flex-1 bg-bg border border-border-light rounded p-3">
-            <div className="text-xs font-semibold text-green mb-1">With LeanMultisig (using WHIR)</div>
-            <p className="text-xs text-text-muted">
-              Provers aggregate signatures in a recursive tree. Every node verifies one final
-              proof in ~400us. WHIR's fast verifier keeps on-chain costs minimal.
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-text-muted mt-4 italic">
-          WHIR is the component that makes the <em>verifier</em> fast. Its query complexity of{' '}
-          <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot \log \frac{m}{k})" /> is what
-          enables verification in hundreds of microseconds rather than milliseconds — critical
-          when this cost is paid by every node in the network, or when verification happens
-          inside a recursive proof circuit at each level of LeanMultisig's aggregation tree.
-        </p>
       </div>
 
       {/* Prior Art */}
@@ -322,7 +351,7 @@ export function S1_WhatProblem() {
       <p className="mb-4">
         WHIR didn't appear out of nowhere. It builds on a lineage of proof systems, each making
         different tradeoffs between proof size, prover speed, verifier speed, and trust assumptions.
-        Understanding where WHIR came from helps explain <em>why</em> LeanMultisig chose it over
+        Understanding where WHIR came from helps explain <em>why</em> leanMultisig chose it over
         alternatives.
       </p>
 
@@ -346,7 +375,7 @@ export function S1_WhatProblem() {
                 <strong>The catch:</strong> Groth16 requires a <em>trusted setup</em> — a ceremony
                 where secret randomness is generated and must be destroyed. If any participant keeps
                 the secret, they can forge proofs. It also relies on pairing-based cryptography,
-                which is <strong>not quantum-resistant</strong> — the very threat LeanMultisig is
+                which is <strong>not quantum-resistant</strong> — the very threat leanMultisig is
                 designed to address.
               </p>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -383,11 +412,11 @@ export function S1_WhatProblem() {
                 univariate polynomial commitment scheme, requiring FFT-based evaluation domains.
               </p>
               <p className="text-sm text-text-muted">
-                <strong>Why not for LeanMultisig:</strong> FRI has larger proofs (~150-250 KB) and slower
+                <strong>Why not for leanMultisig:</strong> FRI has larger proofs (~150-250 KB) and slower
                 verification. The verifier must make{' '}
                 <InlineMath tex="O(\lambda + \frac{\lambda}{k} \cdot m)" /> queries — the
                 linear <InlineMath tex="m" /> factor makes verification cost grow with the problem
-                size. FRI also lacks a natural multilinear PCS mode, which LeanMultisig needs for its
+                size. FRI also lacks a natural multilinear PCS mode, which leanMultisig needs for its
                 simple stacking technique.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
@@ -428,7 +457,7 @@ export function S1_WhatProblem() {
                 <strong>What remained:</strong> STIR's verifier, while making fewer queries,
                 still did <InlineMath tex="O(\frac{\lambda^2}{k} \cdot 2^k)" /> field operations
                 per query — the per-query cost was high, keeping total verification time
-                in the millisecond range. Not fast enough for LeanMultisig's recursive aggregation,
+                in the millisecond range. Not fast enough for leanMultisig's recursive aggregation,
                 where verification happens inside the circuit at every tree level.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
@@ -466,8 +495,8 @@ export function S1_WhatProblem() {
                 fastest known verifier for proximity testing.
               </p>
               <p className="text-sm text-text-muted mb-2">
-                <strong>Why LeanMultisig chose WHIR:</strong> WHIR functions as a multilinear polynomial
-                commitment scheme, which enables LeanMultisig's "simple stacking" — multiple multilinear
+                <strong>Why leanMultisig chose WHIR:</strong> WHIR functions as a multilinear polynomial
+                commitment scheme, which enables leanMultisig's "simple stacking" — multiple multilinear
                 polynomials (from the execution table, Poseidon2 table, and extension op table) are
                 concatenated into one and committed via a single WHIR instance. No need for
                 univariate FFT-based commitment like FRI or Plonky3. Being hash-based, it is
@@ -487,7 +516,7 @@ export function S1_WhatProblem() {
       <p className="text-sm text-text-muted mt-6 italic">
         In the sections that follow, we will build up the ideas behind WHIR step by step:
         Reed-Solomon codes, constrained codes, the sumcheck protocol, and folding — all
-        combining into the protocol that powers LeanMultisig's polynomial commitment layer.
+        combining into the protocol that powers leanMultisig's polynomial commitment layer.
       </p>
     </Section>
   );
