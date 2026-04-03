@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Section } from '../components/Section';
 import { Math as InlineMath, MathBlock } from '../components/MathBlock';
 import { StepNavigator } from '../components/ui/StepNavigator';
+import { Slider } from '../components/ui/Slider';
 import { mod } from '../utils/field';
 import { evaluate } from '../utils/polynomial';
 import type { MultilinearPoly } from '../utils/sumcheck';
@@ -23,6 +24,18 @@ const stepLabels = [
 
 export function S5_Sumcheck() {
   const [step, setStep] = useState(0);
+  // Charlie's score slider — defaults to honest value (4)
+  const [charlieOverride, setCharlieOverride] = useState<number | null>(null);
+  const charlieScore = charlieOverride !== null ? charlieOverride : 4;
+
+  // 3 referees: Alice=3, Bob=1, Charlie=4
+  // Row 00: ADD: 0 + Alice(3) = 3
+  // Row 01: ADD: 3 + Bob(1) = 4
+  // Row 10: ADD: 4 + Charlie(4) = 8  (tamper target)
+  // Row 11: padding (0)
+  // Committed outputs: 3, 4, 8, 0
+  const row10Error = ((8 - (4 + charlieScore) % 17) % 17 + 17) % 17;
+  const totalWeightedSum = row10Error;
 
   const result = useMemo(
     () => simulateFullSumcheck(POLY, CHALLENGES),
@@ -59,46 +72,296 @@ export function S5_Sumcheck() {
         How Sumcheck Works
       </h3>
       <p>
-        In leanMultisig, the prover needs to convince the verifier that AIR constraints hold
-        on <em>all</em> <InlineMath tex="2^{25}" /> rows of the execution trace. Checking
-        every row individually is far too expensive. The <strong>sumcheck protocol</strong>{' '}
-        solves this by reducing an exponential-size sum to a <em>single</em> random
-        evaluation. Inside WHIR, sumcheck is used in each iteration to reduce the CRS
-        constraint to a simpler one. It also enables batching: as described in Section 3.7
-        of the leanMultisig paper, multiple polynomial claims can be combined into one via
-        sumcheck queries over stacked multilinear polynomials.
+        The <strong>sumcheck protocol</strong> is a core building block inside WHIR.
+        Recall that a CRS constraint requires checking a weighted sum over <em>all</em>{' '}
+        <InlineMath tex="2^m" /> points of the boolean hypercube — for large polynomials,
+        that's millions of evaluations. Sumcheck solves this by reducing the exponential-size
+        sum to a <em>single</em> random evaluation. WHIR uses sumcheck in each iteration
+        to reduce the CRS constraint to a simpler one on a smaller domain.
       </p>
 
       <MathBlock tex="\sum_{b \in \{0,1\}^m} f(b) \stackrel{?}{=} H" />
 
+      {/* Why exponential visualization */}
+      <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
+        <h4 className="font-heading font-semibold text-base text-text mb-3">
+          Why is this sum exponential?
+        </h4>
+        <p className="text-sm text-text-muted mb-4">
+          The boolean hypercube <InlineMath tex="\{0,1\}^m" /> contains every binary
+          string of length <InlineMath tex="m" />. Each additional variable doubles the
+          number of points — the sum grows exponentially:
+        </p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Variables (<InlineMath tex="m" />)</th>
+                <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Points (<InlineMath tex="2^m" />)</th>
+                <th className="text-left py-2 px-3 font-heading font-semibold text-text-muted text-xs">Example program</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3 font-mono">4</td>
+                <td className="py-2 px-3 font-mono">16</td>
+                <td className="py-2 px-3 text-text-muted">
+                  Hash preimage — just a few rounds of a hash function, ~16 steps
+                </td>
+              </tr>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3 font-mono">8</td>
+                <td className="py-2 px-3 font-mono">256</td>
+                <td className="py-2 px-3 text-text-muted">
+                  Sudoku validity — 81 cells with row/column/box constraints, a few hundred checks
+                </td>
+              </tr>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3 font-mono">12</td>
+                <td className="py-2 px-3 font-mono">4,096</td>
+                <td className="py-2 px-3 text-text-muted">
+                  Merkle inclusion — ~32 hash computations for a tree of depth 32, each hash expands to ~100 trace rows
+                </td>
+              </tr>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3 font-mono">16</td>
+                <td className="py-2 px-3 font-mono">65,536</td>
+                <td className="py-2 px-3 text-text-muted">
+                  Token transfer — balance lookups, signature check, state update; each operation generates many trace rows
+                </td>
+              </tr>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3 font-mono">20</td>
+                <td className="py-2 px-3 font-mono">1,048,576</td>
+                <td className="py-2 px-3 text-text-muted">
+                  DEX swap — price oracle reads, AMM curve math, multiple token transfers, slippage checks
+                </td>
+              </tr>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3 font-mono">22</td>
+                <td className="py-2 px-3 font-mono">4,194,304</td>
+                <td className="py-2 px-3 text-text-muted">
+                  Rollup block — hundreds of transactions, each with its own signature verification and state transitions
+                </td>
+              </tr>
+              <tr className="bg-navy/5 font-semibold">
+                <td className="py-2 px-3 font-mono">25</td>
+                <td className="py-2 px-3 font-mono">33,554,432</td>
+                <td className="py-2 px-3">
+                  leanMultisig — ~2,500 post-quantum signatures, each requiring thousands of hash evaluations
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <p>
-        The protocol works in <InlineMath tex="m" /> rounds. In each round, the prover
-        "collapses" one variable by sending a univariate polynomial. The verifier checks
-        it and replies with a random challenge. After <InlineMath tex="m" /> rounds,
-        the verifier only needs to evaluate <InlineMath tex="f" /> at a single point!
+        The protocol works in <InlineMath tex="m" /> rounds, collapsing one variable
+        at a time. Using the same referee example from Section 3 — Alice, Bob,
+        and Charlie with 3 ADD operations starting from 0. This requires 2 sumcheck rounds:
       </p>
 
-      <div className="bg-bg-card border border-border rounded-lg p-5 my-6 space-y-2">
-        <h4 className="font-heading font-semibold text-base text-text">How each round works:</h4>
-        <div className="text-sm text-text-muted space-y-2">
-          <p>
-            <strong>Prover sends:</strong> A univariate polynomial{' '}
-            <InlineMath tex="p_i(X_i)" /> obtained by summing <InlineMath tex="f" /> over
-            all remaining variables except <InlineMath tex="X_i" />.
+      {/* Collapse visualization */}
+      <div className="bg-bg-card border border-border rounded-lg p-5 my-6 space-y-4">
+        {/* Start: trace table */}
+        <div>
+          <div className="text-xs font-semibold text-text-muted mb-2">
+            Start: sum over all <InlineMath tex="2^2 = 4" /> points
+          </div>
+
+          <div className="overflow-x-auto mb-3">
+            <table className="text-[10px] border-collapse font-mono mx-auto">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Row</th>
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Op</th>
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Input 1</th>
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Input 2</th>
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Output</th>
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Constraint check</th>
+                  <th className="py-1 px-2 text-left text-text-muted font-semibold">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { row: 0, bin: '00', in1: '0', in2: '3 (Alice)', out: 3, check: `3 − 0 − 3`, error: 0, pad: false },
+                  { row: 1, bin: '01', in1: '3', in2: '1 (Bob)', out: 4, check: `4 − 3 − 1`, error: 0, pad: false },
+                  { row: 2, bin: '10', in1: '4', in2: `${charlieScore} (Charlie)`, out: 8, check: `8 − 4 − ${charlieScore}`, error: row10Error, pad: false },
+                  { row: 3, bin: '11', in1: '—', in2: '—', out: 0, check: '—', error: 0, pad: true },
+                ].map((r, i) => (
+                  <tr key={i} className={`${i < 3 ? 'border-b border-border-light' : ''} ${r.bin === '10' && row10Error !== 0 ? 'bg-red/5' : ''}`}>
+                    <td className="py-1 px-2 text-text-muted">{r.row} <span className="text-text-muted/50">({r.bin})</span></td>
+                    <td className={`py-1 px-2 text-text-muted ${r.pad ? 'text-text-muted/40' : ''}`}>{r.pad ? 'pad' : 'ADD'}</td>
+                    <td className={`py-1 px-2 ${r.pad ? 'text-text-muted/40' : ''}`}>{r.in1}</td>
+                    <td className={`py-1 px-2 ${r.pad ? 'text-text-muted/40' : ''} ${r.bin === '10' && row10Error !== 0 ? 'text-red font-bold' : ''}`}>{r.in2}</td>
+                    <td className="py-1 px-2 font-bold" style={{ color: r.pad ? '#6b6375' : '#4f46e5' }}>{r.out}</td>
+                    <td className="py-1 px-2 text-text-muted">{r.check}</td>
+                    <td className={`py-1 px-2 font-bold ${r.error === 0 ? 'text-green' : 'text-red'}`}>{r.error}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex gap-1 justify-center mb-3">
+            {[{pt:'00',v:0},{pt:'01',v:0},{pt:'10',v:row10Error},{pt:'11',v:0}].map(({pt,v}) => (
+              <div key={pt} className="flex flex-col items-center gap-0.5">
+                <div className="w-10 h-7 rounded bg-navy/10 text-navy text-[10px] font-mono flex items-center justify-center">{pt}</div>
+                <div className={`text-[9px] font-mono font-bold ${v === 0 ? 'text-green' : 'text-red'}`}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-xs text-text-muted mb-3">
+            Each row is indexed by a 2-bit
+            string <InlineMath tex="X_1 X_2" />.
+            Since <InlineMath tex="\{0,1\}^2" /> has 4 points but we only have 3
+            operations, the last row (11) is unused and filled with zeros — it doesn't
+            affect the weighted sum.
+            Try changing Charlie's score — the prover already committed to the
+            outputs, so tampering creates an error:
+          </div>
+
+          <div className="max-w-[300px] mx-auto mb-3">
+            <Slider
+              label={`Charlie's score (honest = 4)`}
+              value={charlieOverride !== null ? charlieOverride : 4}
+              min={0}
+              max={5}
+              onChange={setCharlieOverride}
+            />
+          </div>
+
+        </div>
+
+        {/* Round 1 */}
+        <div className="border-t border-border-light pt-4">
+          <div className="text-xs font-semibold text-sienna mb-1">
+            Round 1: collapse <InlineMath tex="X_1" />
+          </div>
+          <div className="text-xs text-text-muted mb-2">
+            Group by the first bit (<InlineMath tex="X_1" />): sum the 2
+            points starting
+            with <span className="font-mono font-bold">0</span> and the 2
+            starting with <span className="font-mono font-bold">1</span>.
+            This produces a univariate
+            polynomial <InlineMath tex="p_1(X_1)" />.
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <div className="flex gap-1">
+              {[{pt:'00',v:0},{pt:'01',v:0}].map(({pt,v}) => (
+                <div key={pt} className="flex flex-col items-center gap-0.5">
+                  <div className="w-10 h-7 rounded bg-navy/10 text-navy text-[10px] font-mono flex items-center justify-center">{pt}</div>
+                  <div className={`text-[9px] font-mono font-bold ${v === 0 ? 'text-green' : 'text-red'}`}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-text-muted">
+              → 0+0 = <strong className="text-green">0</strong> = <InlineMath tex="p_1(0)" />
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <div className="flex gap-1">
+              {[{pt:'10',v:row10Error},{pt:'11',v:0}].map(({pt,v}) => (
+                <div key={pt} className="flex flex-col items-center gap-0.5">
+                  <div className="w-10 h-7 rounded bg-sienna/10 text-sienna text-[10px] font-mono flex items-center justify-center">{pt}</div>
+                  <div className={`text-[9px] font-mono font-bold ${v === 0 ? 'text-green' : 'text-red'}`}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-text-muted">
+              → {row10Error}+0 = <strong className={row10Error === 0 ? 'text-green' : 'text-red'}>{row10Error}</strong> = <InlineMath tex="p_1(1)" />
+            </div>
+          </div>
+
+          <div className="text-xs text-text-muted mt-3">
+            <strong>What's checked:</strong> <InlineMath tex={`p_1(0) + p_1(1) = 0 + ${row10Error} = ${row10Error}`} /> — this
+            must match the claimed weighted sum.
+          </div>
+          <div className="text-xs text-text-muted mt-1">
+            <strong>What's NOT checked:</strong> The individual values within each group
+            (e.g. whether row 00 = 0 and row 01 = 0 separately).
+          </div>
+          {/* Fiat-Shamir: compute α₁, evaluate, continue */}
+          <div className="flex items-center justify-center gap-2 mt-3 text-[10px] font-mono flex-wrap">
+            <span className="text-text-muted">Hash</span>
+            <span className="text-text-muted">→</span>
+            <span className="rounded px-2 py-1 font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }}>
+              <InlineMath tex="\alpha_1" />
+            </span>
+            <span className="text-text-muted">→ evaluate</span>
+            <span className="rounded px-2 py-1 font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }}>
+              <InlineMath tex={`p_1(\\alpha_1) = ${row10Error}`} />
+            </span>
+            <span className="text-text-muted">→ new claimed sum for round 2</span>
+          </div>
+          <div className="text-[9px] text-text-muted/50 text-center mt-1">
+            Fiat-Shamir: <InlineMath tex="\alpha_1" /> is derived by hashing the transcript — no interaction needed.
+            {row10Error !== 0
+              ? <span className="italic"> The error is hiding in the <InlineMath tex="X_1 = 1" /> group.</span>
+              : <span className="italic"> All errors are 0 — trace is honest.</span>}
+          </div>
+        </div>
+
+        {/* Round 2 */}
+        <div className="border-t border-border-light pt-4">
+          <div className="text-xs font-semibold text-sienna mb-1">
+            Round 2: collapse <InlineMath tex="X_2" />
+          </div>
+          <div className="text-xs text-text-muted mb-2">
+            2 points remain. Each is now a single value:
+          </div>
+          <div className="flex items-center justify-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="w-10 h-7 rounded bg-navy/10 text-navy text-[10px] font-mono flex items-center justify-center">α0</div>
+                <div className={`text-[9px] font-mono font-bold ${row10Error === 0 ? 'text-green' : 'text-red'}`}>{row10Error}</div>
+              </div>
+              <div className="text-xs text-text-muted">= <InlineMath tex="p_2(0)" /></div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="w-10 h-7 rounded bg-sienna/10 text-sienna text-[10px] font-mono flex items-center justify-center">α1</div>
+                <div className="text-[9px] font-mono font-bold text-green">0</div>
+              </div>
+              <div className="text-xs text-text-muted">= <InlineMath tex="p_2(1)" /></div>
+            </div>
+          </div>
+          <div className="text-xs text-text-muted mt-2">
+            Consistency check: <InlineMath tex={`p_2(0) + p_2(1) = ${row10Error} + 0 = ${row10Error}`} /> must match.
+            Fiat-Shamir determines <InlineMath tex="\alpha_2" /> to
+            lock in <InlineMath tex="X_2" />.
+            {row10Error !== 0
+              ? <span className="italic"> The error at row <span className="font-mono">10</span> (Charlie's tampered score) is caught!</span>
+              : <span className="italic"> All values are 0 — the trace is valid.</span>}
+          </div>
+        </div>
+
+        {/* Final */}
+        <div className="border-t border-border-light pt-4 text-center">
+          <div className="inline-flex items-center gap-3 bg-green/5 border border-green/20 rounded-lg px-4 py-2">
+            <div className="w-10 h-8 rounded bg-green/15 text-green text-[10px] font-mono font-bold flex items-center justify-center">
+              αα
+            </div>
+            <div className="text-sm text-text">
+              <strong>Done!</strong> Only 1 point: <InlineMath tex="f(\alpha_1, \alpha_2)" />
+            </div>
+          </div>
+          <p className="text-xs text-text-muted mt-2">
+            4 points → 2 → 1. Each round halved the problem.
           </p>
-          <p>
-            <strong>Verifier checks:</strong>{' '}
-            <InlineMath tex="p_i(0) + p_i(1) = \text{current claimed sum}" />. This works
-            because substituting 0 and 1 for <InlineMath tex="X_i" /> and adding recovers
-            the full sum over that variable.
-          </p>
-          <p>
-            <strong>Verifier sends:</strong> A random challenge{' '}
-            <InlineMath tex="\alpha_i" />.
-          </p>
-          <p>
-            <strong>New claim:</strong>{' '}
-            <InlineMath tex="p_i(\alpha_i)" /> becomes the claimed sum for the next round.
+        </div>
+
+        <div className="border-t border-border-light pt-4 mt-4">
+          <p className="text-xs text-text-muted">
+            <strong className="text-text">Sumcheck ≠ folding.</strong> This
+            variable-collapsing reduces the <em>constraint check</em> (the weighted sum)
+            to a single-point claim. WHIR also uses <strong>folding</strong> (covered in
+            the next section) to reduce the <em>polynomial itself</em> to a smaller one
+            on a smaller domain. In each WHIR iteration, sumcheck happens first to shrink
+            the claim, then folding shrinks the data. They're complementary.
           </p>
         </div>
       </div>
@@ -108,7 +371,7 @@ export function S5_Sumcheck() {
       </h3>
       <p className="mb-4">
         Below we walk through sumcheck on a tiny 2-variable polynomial in{' '}
-        <InlineMath tex="\mathbb{F}_{17}" />. In leanMultisig, the same protocol runs on
+        <InlineMath tex="\mathbb{F}_{17}" />. In practice, WHIR runs this same protocol on
         polynomials with 25+ variables, reducing <InlineMath tex="2^{25}" /> constraint
         checks to a single evaluation. Use the arrows to step through.
       </p>
@@ -370,11 +633,11 @@ export function S5_Sumcheck() {
         <p className="text-sm text-text-muted">
           Instead of checking <InlineMath tex="2^m" /> evaluations, the verifier only
           exchanges <InlineMath tex="m" /> messages and evaluates{' '}
-          <InlineMath tex="f" /> at <strong>one</strong> point. In leanMultisig with{' '}
-          <InlineMath tex="m = 25" />, that means 1 evaluation instead of over 33 million.
-          The sumcheck protocol is the engine that powers WHIR's constraint reduction,
-          and it is what allows leanMultisig to batch multiple table polynomials into a single
-          check (Section 3.7: "simple stacking of multilinear polynomials").
+          <InlineMath tex="f" /> at <strong>one</strong> point. With{' '}
+          <InlineMath tex="m = 25" /> variables, that means 1 evaluation instead of over 33 million.
+          Sumcheck is the engine that powers WHIR's constraint reduction — it is what
+          makes each WHIR iteration efficient, turning an exponential check into a
+          linear-round interactive protocol.
         </p>
       </div>
     </Section>

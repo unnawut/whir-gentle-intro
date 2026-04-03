@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Section } from '../components/Section';
 import { Math as InlineMath, MathBlock } from '../components/MathBlock';
@@ -6,28 +6,26 @@ import { Slider } from '../components/ui/Slider';
 import { mod } from '../utils/field';
 
 export function S4_ConstrainedRS() {
-  // Inputs for the ADD chain
-  const [a, setA] = useState(3);
-  const [b, setB] = useState(5);
-  const [c, setC] = useState(4);
+  // Inputs for the ADD chain — 3 referees
+  const [a, setA] = useState(3);  // Alice
+  const [b, setB] = useState(1);  // Bob
+  const [c, setC] = useState(4);  // Charlie
 
-  // Correct trace values
-  const step1 = mod(a + b);      // ADD(a, b)
-  const step2 = mod(step1 + c);  // ADD(step1, c)
+  // Correct trace values — starting from 0
+  const step0 = mod(0 + a);           // 0 + Alice
+  const step1 = mod(step0 + b);       // step0 + Bob
+  const step2 = mod(step1 + c);       // step1 + Charlie
 
-  // Row 1 output — editable, defaults to correct value
+  // Row 2 output — editable, defaults to correct value (tamper target: Charlie's row)
   const [overrideStep2, setOverrideStep2] = useState<number | null>(null);
 
-  const traceStep1 = step1;
   const traceStep2 = overrideStep2 !== null ? mod(overrideStep2) : step2;
 
   // CRS constraint: for each ADD row, output - input1 - input2 = 0
-  // Row 0: step1 - a - b = 0  →  weight: w(0) = step1 - a - b
-  // Row 1: step2 - step1 - c = 0  →  weight: w(1) = step2 - step1 - c
-  // Total constraint: (step1 - a - b) + (step2 - step1 - c) = 0  (mod 17)
-  const error1 = mod(traceStep1 - a - b);
-  const error2 = mod(traceStep2 - traceStep1 - c);
-  const totalError = mod(error1 + error2);
+  const error0 = mod(step0 - 0 - a);
+  const error1 = mod(step1 - step0 - b);
+  const error2 = mod(traceStep2 - step1 - c);
+  const totalError = mod(error0 + error1 + error2);
   const constraintSatisfied = totalError === 0;
 
   // Trace as polynomial on {0,1}^2
@@ -165,7 +163,8 @@ export function S4_ConstrainedRS() {
           </h4>
           <p className="text-sm text-text-muted mb-3">
             Three referees — Alice, Bob, and Charlie — each give a score to a
-            performance. A program computes the total score by adding them up. We want
+            performance. A program computes the total score by adding them up
+            one at a time, starting from 0. We want
             anyone to be able to validate that the total is correct — without having to
             collect all the individual scores and re-add them.
           </p>
@@ -190,34 +189,44 @@ export function S4_ConstrainedRS() {
             Step 1: The computation
           </h4>
           <p className="text-sm text-text-muted mb-3">
-            Choose each referee's score (0 to 5). The program performs two ADD operations:
+            Choose each referee's score (0 to 5). The program performs three ADD operations, starting from 0:
           </p>
-          {/* Visual ADD chain */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4 mb-2 max-w-[320px] mx-auto">
-              <Slider label="Alice (a)" value={a} min={0} max={5} onChange={setA} />
-              <Slider label="Bob (b)" value={b} min={0} max={5} onChange={setB} />
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm font-mono">
-              <span className="text-xs text-text-muted mr-1">ADD 1:</span>
-              <span className="bg-navy/10 text-navy rounded px-2 py-1 font-bold">{a}</span>
-              <span className="text-text-muted">+</span>
-              <span className="bg-navy/10 text-navy rounded px-2 py-1 font-bold">{b}</span>
-              <span className="text-text-muted">=</span>
-              <span className="rounded px-2 py-1 font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }}>{step1}</span>
-            </div>
-            <div className="flex items-center justify-center text-text-muted text-xs">&darr;</div>
-            <div className="max-w-[150px] mx-auto mb-2">
-              <Slider label="Charlie (c)" value={c} min={0} max={5} onChange={setC} />
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm font-mono">
-              <span className="text-xs text-text-muted mr-1">ADD 2:</span>
-              <span className="rounded px-2 py-1 font-bold" style={{ background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }}>{step1}</span>
-              <span className="text-text-muted">+</span>
-              <span className="bg-navy/10 text-navy rounded px-2 py-1 font-bold">{c}</span>
-              <span className="text-text-muted">=</span>
-              <span className="bg-green/10 text-green rounded px-2 py-1 font-bold">{step2}</span>
-            </div>
+          {/* Visual ADD chain with sliders on the left */}
+          <div className="mx-auto font-mono text-sm">
+            {[
+              { op: 'ADD 0', left: 0, leftLabel: 'initial', leftStyle: 'bg-navy/10 text-navy', score: a, name: 'Alice', result: step0, resultStyle: { background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }, slider: <Slider label="Alice" value={a} min={0} max={5} onChange={setA} inline /> },
+              { op: 'ADD 1', left: step0, leftLabel: '', leftStyle: '', score: b, name: 'Bob', result: step1, resultStyle: { background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }, slider: <Slider label="Bob" value={b} min={0} max={5} onChange={setB} inline /> },
+              { op: 'ADD 2', left: step1, leftLabel: '', leftStyle: '', score: c, name: 'Charlie', result: step2, resultStyle: { background: 'rgba(47,133,90,0.1)', color: '#2f855a' }, slider: <Slider label="Charlie" value={c} min={0} max={5} onChange={setC} inline /> },
+            ].map((r, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && (
+                  <div className="grid grid-cols-[160px_160px_50px_40px_16px_40px_16px_40px] items-center justify-center">
+                    <div /><div /><div /><div /><div />
+                    <div className="text-center text-text-muted text-xs">&darr;</div>
+                    <div /><div />
+                  </div>
+                )}
+                {/* Name label row */}
+                <div className="grid grid-cols-[160px_160px_50px_40px_16px_40px_16px_40px] justify-center">
+                  <div /><div /><div />
+                  <div className="text-[9px] text-text-muted/50 text-center">{r.leftLabel}</div>
+                  <div />
+                  <div className="text-[9px] text-text-muted/50 text-center">{r.name}</div>
+                  <div /><div />
+                </div>
+                {/* Slider + values row */}
+                <div className="grid grid-cols-[160px_160px_50px_40px_16px_40px_16px_40px] items-center justify-center">
+                  <div>{r.slider}</div>
+                  <div />
+                  <span className="text-xs text-text-muted">{r.op}:</span>
+                  <span className={`rounded px-2 py-1 font-bold text-center ${r.leftStyle}`} style={r.leftStyle ? undefined : { background: 'rgba(99,102,241,0.1)', color: '#4f46e5' }}>{r.left}</span>
+                  <span className="text-text-muted text-center">+</span>
+                  <span className="bg-navy/10 text-navy rounded px-2 py-1 font-bold text-center">{r.score}</span>
+                  <span className="text-text-muted text-center">=</span>
+                  <span className="rounded px-2 py-1 font-bold text-center" style={r.resultStyle}>{r.result}</span>
+                </div>
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
@@ -244,21 +253,24 @@ export function S4_ConstrainedRS() {
               <tbody className="font-mono">
                 <tr className="border-b border-border-light">
                   <td className="py-2 px-3 text-text-muted">0</td>
-                  <td className="py-2 px-3 text-text-muted">ADD 1</td>
+                  <td className="py-2 px-3 text-text-muted">ADD 0</td>
+                  <td className="py-2 px-3 text-navy font-bold">0</td>
                   <td className="py-2 px-3 text-navy font-bold">{a}</td>
-                  <td className="py-2 px-3 text-navy font-bold">{b}</td>
-                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>
-                    {traceStep1}
-                  </td>
+                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>{step0}</td>
                 </tr>
-                <tr>
+                <tr className="border-b border-border-light">
                   <td className="py-2 px-3 text-text-muted">1</td>
+                  <td className="py-2 px-3 text-text-muted">ADD 1</td>
+                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>{step0}</td>
+                  <td className="py-2 px-3 text-navy font-bold">{b}</td>
+                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>{step1}</td>
+                </tr>
+                <tr className="border-b border-border-light">
+                  <td className="py-2 px-3 text-text-muted">2</td>
                   <td className="py-2 px-3 text-text-muted">ADD 2</td>
-                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>{traceStep1}</td>
+                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>{step1}</td>
                   <td className="py-2 px-3 text-navy font-bold">{c}</td>
-                  <td className={`py-2 px-3 font-bold ${error2 !== 0 ? 'text-red' : 'text-green'}`}>
-                    {traceStep2}
-                  </td>
+                  <td className={`py-2 px-3 font-bold ${error2 !== 0 ? 'text-red' : 'text-green'}`}>{traceStep2}</td>
                 </tr>
               </tbody>
             </table>
@@ -315,44 +327,27 @@ export function S4_ConstrainedRS() {
                 </tr>
               </thead>
               <tbody className="font-mono">
-                <tr className="border-b border-border-light">
-                  <td className="py-2 px-3 text-text-muted">0</td>
-                  <td className="py-2 px-3 text-text-muted">ADD 1</td>
-                  <td className="py-2 px-3 text-navy font-bold">{a}</td>
-                  <td className="py-2 px-3 text-navy font-bold">{b}</td>
-                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>
-                    {traceStep1}
-                  </td>
-                  <td className="py-2 px-3">
-                    <span style={{ color: '#4f46e5' }}>{traceStep1}</span>{' - '}
-                    <span className="text-navy">{a}</span>{' - '}
-                    <span className="text-navy">{b}</span>{' = '}{error1}
-                  </td>
-                  <td className="py-2 px-3">
-                    <span className={error1 === 0 ? 'text-green font-bold' : 'text-red font-bold'}>
-                      {error1 === 0 ? '\u2713 valid' : '\u2717 invalid'}
-                    </span>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-2 px-3 text-text-muted">1</td>
-                  <td className="py-2 px-3 text-text-muted">ADD 2</td>
-                  <td className="py-2 px-3 font-bold" style={{ color: '#4f46e5' }}>{traceStep1}</td>
-                  <td className="py-2 px-3 text-navy font-bold">{c}</td>
-                  <td className={`py-2 px-3 font-bold ${error2 !== 0 ? 'text-red' : 'text-green'}`}>
-                    {traceStep2}
-                  </td>
-                  <td className="py-2 px-3">
-                    <span className={error2 !== 0 ? 'text-red' : 'text-green'}>{traceStep2}</span>{' - '}
-                    <span style={{ color: '#4f46e5' }}>{traceStep1}</span>{' - '}
-                    <span className="text-navy">{c}</span>{' = '}{error2}
-                  </td>
-                  <td className="py-2 px-3">
-                    <span className={error2 === 0 ? 'text-green font-bold' : 'text-red font-bold'}>
-                      {error2 === 0 ? '\u2713 valid' : '\u2717 invalid'}
-                    </span>
-                  </td>
-                </tr>
+                {[
+                  { row: 0, op: 'ADD 0', i1: '0', i2: String(a), out: step0, check: `${step0} − 0 − ${a}`, err: error0, i1Style: 'text-navy', i2Style: 'text-navy', outStyle: { color: '#4f46e5' } },
+                  { row: 1, op: 'ADD 1', i1: String(step0), i2: String(b), out: step1, check: `${step1} − ${step0} − ${b}`, err: error1, i1Style: '', i2Style: 'text-navy', outStyle: { color: '#4f46e5' } },
+                  { row: 2, op: 'ADD 2', i1: String(step1), i2: String(c), out: traceStep2, check: `${traceStep2} − ${step1} − ${c}`, err: error2, i1Style: '', i2Style: 'text-navy', outStyle: { color: error2 !== 0 ? '#c53030' : '#2f855a' } },
+                ].map((r, i) => (
+                  <tr key={i} className={i < 2 ? 'border-b border-border-light' : ''}>
+                    <td className="py-2 px-3 text-text-muted">{r.row}</td>
+                    <td className="py-2 px-3 text-text-muted">{r.op}</td>
+                    <td className="py-2 px-3 font-bold" style={r.i1Style ? undefined : { color: '#4f46e5' }}>
+                      <span className={r.i1Style}>{r.i1}</span>
+                    </td>
+                    <td className="py-2 px-3 text-navy font-bold">{r.i2}</td>
+                    <td className="py-2 px-3 font-bold" style={r.outStyle}>{r.out}</td>
+                    <td className="py-2 px-3">{r.check} = {r.err}</td>
+                    <td className="py-2 px-3">
+                      <span className={r.err === 0 ? 'text-green font-bold' : 'text-red font-bold'}>
+                        {r.err === 0 ? '\u2713 valid' : '\u2717 invalid'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -374,36 +369,37 @@ export function S4_ConstrainedRS() {
             Instead of checking each row individually, CRS encodes <em>all</em> ADD constraints
             as a single weighted sum. The weight
             function <InlineMath tex="\hat{w}" /> extracts "output - input1 - input2" from each
-            row, and the target is <InlineMath tex="\sigma = 0" />:
+            row, and the target is <InlineMath tex="\sigma = 0" /> (because a correct ADD
+            has zero error). These all have target <InlineMath tex="\sigma = 0" /> because
+            they check that each row's error is zero:
           </p>
 
           <div className="bg-bg border border-border-light rounded-md p-4 font-mono text-sm">
             {/* Per-row constraint errors */}
             <div className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-2 items-center mb-3">
-              <span className="text-text-muted text-xs">Row 0</span>
-              <span>
-                <span style={{ color: '#4f46e5' }}>{traceStep1}</span>
-                {' - '}<span className="text-navy">{a}</span>
-                {' - '}<span className="text-navy">{b}</span>
-              </span>
-              <span className={`font-bold text-right ${error1 === 0 ? '' : 'text-red'}`}>= {error1}</span>
-
-              <span className="text-text-muted text-xs">Row 1</span>
-              <span>
-                <span className={error2 !== 0 ? 'text-red' : 'text-green'}>{traceStep2}</span>
-                {' - '}<span style={{ color: '#4f46e5' }}>{traceStep1}</span>
-                {' - '}<span className="text-navy">{c}</span>
-              </span>
-              <span className={`font-bold text-right ${error2 === 0 ? '' : 'text-red'}`}>= {error2}</span>
+              {[
+                { label: 'Row 0', expr: <>{step0} − 0 − {a}</>, err: error0 },
+                { label: 'Row 1', expr: <>{step1} − {step0} − {b}</>, err: error1 },
+                { label: 'Row 2', expr: <><span className={error2 !== 0 ? 'text-red' : ''}>{traceStep2}</span> − {step1} − {c}</>, err: error2 },
+              ].map((r, i) => (
+                <React.Fragment key={i}>
+                  <span className="text-text-muted text-xs">{r.label}</span>
+                  <span>{r.expr}</span>
+                  <span className={`font-bold text-right ${r.err === 0 ? '' : 'text-red'}`}>= {r.err}</span>
+                </React.Fragment>
+              ))}
             </div>
 
             {/* Summation line */}
             <div className="border-t border-border-light pt-3 flex flex-col items-end gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-text-muted text-xs">Weighted sum</span>
-                <span className={error1 === 0 ? '' : 'text-red font-bold'}>{error1}</span>
-                {' + '}
-                <span className={error2 === 0 ? '' : 'text-red font-bold'}>{error2}</span>
+                {[error0, error1, error2].map((e, i) => (
+                  <span key={i}>
+                    {i > 0 && ' + '}
+                    <span className={e === 0 ? '' : 'text-red font-bold'}>{e}</span>
+                  </span>
+                ))}
                 <span className="text-text-muted">= </span>
                 <span className={`text-lg font-bold ${constraintSatisfied ? 'text-green' : 'text-red'}`}>{totalError}</span>
               </div>
@@ -412,6 +408,21 @@ export function S4_ConstrainedRS() {
               </span>
             </div>
           </div>
+
+          <p className="text-xs text-text-muted mt-3 italic">
+            These all have target <InlineMath tex="\sigma = 0" /> because
+            they check that each row's error is zero.
+          </p>
+          <p className="text-xs text-text-muted mt-2 italic">
+            Note: <InlineMath tex="\sigma" /> isn't always zero. For example, an{' '}
+            <strong>evaluation query</strong> — "check
+            that <InlineMath tex="f(z) = v" />" — uses the equality polynomial as
+            the weight function and sets <InlineMath tex="\sigma = v" />, which can be
+            any field value. A <strong>range check</strong> constraint ("the sum of all
+            flag columns across every row equals the number of rows that used this opcode")
+            also targets a specific non-zero count. CRS is general enough to encode any
+            weighted sum target, not just zero.
+          </p>
         </div>
 
         {/* Step 5: Try to cheat */}
@@ -420,13 +431,14 @@ export function S4_ConstrainedRS() {
             Step 5: Try to cheat!
           </h4>
           <p className="text-sm text-text-muted mb-3">
-            A dishonest prover might submit a fake output for row 1. Try changing the
-            value below — watch how the CRS constraint catches any incorrect answer:
+            A dishonest prover might submit a fake output for row 2 (Charlie's ADD — the final result).
+            Try changing the value below — watch how the CRS constraint catches any
+            incorrect answer:
           </p>
 
           <div className="max-w-[400px] mx-auto mb-4">
             <Slider
-              label="Row 1 output"
+              label="Row 2 output (Charlie's ADD — final result)"
               value={overrideStep2 !== null ? overrideStep2 : step2}
               min={0}
               max={16}

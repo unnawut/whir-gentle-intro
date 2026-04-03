@@ -483,7 +483,7 @@ export function S1_WhatProblem() {
         <div className="bg-bg-card border-2 border-sienna rounded-lg p-5">
           <div className="flex items-start gap-3">
             <div className="text-xs font-mono bg-sienna text-white rounded px-2 py-0.5 mt-0.5 shrink-0">
-              2024
+              2025
             </div>
             <div>
               <div className="font-heading font-semibold text-base text-sienna mb-1">
