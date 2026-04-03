@@ -71,7 +71,7 @@ export function S9_Performance() {
   return (
     <Section
       id="why-fast"
-      number={9}
+      number={8}
       title="Why WHIR is Fast"
       subtitle="Concrete performance numbers and comparison with FRI, STIR, and BaseFold."
     >

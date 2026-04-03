@@ -31,7 +31,7 @@ export function S8_RecursiveStructure() {
   return (
     <Section
       id="full-protocol"
-      number={8}
+      number={7}
       title="The Full Protocol: Recursive Structure"
       subtitle="Repeated iterations shrink the problem exponentially until it is trivially small."
     >

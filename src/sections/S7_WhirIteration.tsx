@@ -111,7 +111,7 @@ export function S7_WhirIteration() {
   return (
     <Section
       id="one-iteration"
-      number={7}
+      number={6}
       title="One WHIR Iteration"
       subtitle="The core protocol: sumcheck, fold, sample, query, recurse."
     >

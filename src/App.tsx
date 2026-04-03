@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Layout, SECTIONS } from './components/Layout'
 import { S0_Introduction } from './sections/S0_Introduction'
 import { S1_WhatProblem } from './sections/S1_WhatProblem'
-import { S2_FromCodeToPolynomials } from './sections/S2_FromCodeToPolynomials'
 import { S3_ReedSolomon } from './sections/S3_ReedSolomon'
 import { S4_ConstrainedRS } from './sections/S4_ConstrainedRS'
 import { S5_Sumcheck } from './sections/S5_Sumcheck'
@@ -14,7 +13,6 @@ import { S9_Performance } from './sections/S9_Performance'
 const SECTION_COMPONENTS = [
   S0_Introduction,
   S1_WhatProblem,
-  S2_FromCodeToPolynomials,
   S3_ReedSolomon,
   S4_ConstrainedRS,
   S5_Sumcheck,

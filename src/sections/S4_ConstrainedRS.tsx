@@ -37,7 +37,7 @@ export function S4_ConstrainedRS() {
   return (
     <Section
       id="constrained-rs"
-      number={4}
+      number={3}
       title="Constrained Reed-Solomon Codes"
       subtitle="Low-degree polynomials with an extra constraint: a weighted sum must hit a target."
     >

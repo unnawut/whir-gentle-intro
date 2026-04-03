@@ -342,7 +342,7 @@ export function S3_ReedSolomon() {
   return (
     <Section
       id="reed-solomon"
-      number={3}
+      number={2}
       title="Reed-Solomon Codes"
       subtitle="Low-degree polynomials give us redundancy, and redundancy lets us detect errors."
     >

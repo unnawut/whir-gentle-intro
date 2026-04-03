@@ -51,7 +51,7 @@ export function S5_Sumcheck() {
   return (
     <Section
       id="sumcheck"
-      number={5}
+      number={4}
       title="The Sumcheck Protocol"
       subtitle="Reduce an exponential-size sum to a single evaluation, one variable at a time."
     >

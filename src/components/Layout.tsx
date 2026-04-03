@@ -18,19 +18,7 @@ export const SECTIONS = [
       { label: 'The Road to WHIR', id: 'road-to-whir' },
     ],
   },
-  {
-    id: 'code-to-polynomials',
-    label: 'From Code to Polynomials',
-    subs: [
-      { label: 'Arithmetization', id: 'arithmetization' },
-      { label: 'Run the Program, Record Everything', id: 'run-the-program' },
-      { label: 'Columns Become Polynomials', id: 'columns-become-polynomials' },
-      { label: 'Constraints Become Polynomial Identities', id: 'constraints-become-identities' },
-      { label: 'The Big Picture', id: 'big-picture' },
-      { label: 'Polynomial Explorer', id: 'polynomial-explorer' },
-    ],
-  },
-  {
+{
     id: 'reed-solomon',
     label: 'Reed-Solomon Codes',
     subs: [

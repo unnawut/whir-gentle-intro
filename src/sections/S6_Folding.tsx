@@ -86,7 +86,7 @@ export function S6_Folding() {
   return (
     <Section
       id="folding"
-      number={6}
+      number={5}
       title="Folding"
       subtitle="Halving the domain with a random challenge -- the key to WHIR's recursion."
     >
