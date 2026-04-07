@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 interface SliderProps {
   label: string;
   value: number;
@@ -5,7 +7,7 @@ interface SliderProps {
   max: number;
   step?: number;
   onChange: (v: number) => void;
-  displayValue?: string;
+  displayValue?: ReactNode;
   inline?: boolean;
 }
 

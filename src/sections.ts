@@ -49,7 +49,7 @@ export const SECTIONS = [
     label: 'Folding',
     subs: [
       { label: 'What Is Folding?', id: 'what-is-folding' },
-      { label: 'Interactive Folding', id: 'interactive-folding' },
+      { label: 'Folding Example', id: 'interactive-folding' },
     ],
   },
   {
