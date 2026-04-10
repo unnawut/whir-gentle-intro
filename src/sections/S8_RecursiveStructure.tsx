@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { Section } from '../components/Section';
 import { Math as InlineMath, MathBlock } from '../components/MathBlock';
 import { Slider } from '../components/ui/Slider';
+import { Button } from '../components/ui/Button';
 
 const TOTAL_VARS = 25; // m = 25, so domain size = 2^25 (leanMultisig scale)
 
 export function S8_RecursiveStructure() {
-  const [k, setK] = useState(7);
+  const [k, setK] = useState(1);
   const [rateExp, setRateExp] = useState(1); // ρ = 1/2^rateExp, so 1 → 1/2, 2 → 1/4
-  const [queriesPerRound, setQueriesPerRound] = useState(128);
+  const [queriesPerRound, setQueriesPerRound] = useState(16);
 
   const iterations = useMemo(() => {
     const result: { iteration: number; domainSize: number; numVars: number }[] = [];
@@ -29,8 +30,10 @@ export function S8_RecursiveStructure() {
 
   const totalIterations = iterations.length - 1; // exclude base case row
 
-  // Simplified: bits of security per query ≈ -log2(ρ) = rateExp
-  const bitsPerQuery = Math.max(rateExp, 0.5);
+  // Simplified: bits of security per query ≈ -log2(ρ) / k.
+  // Higher k worsens per-query soundness (cheater has more room to hide
+  // across 2^k cosets), so you need more queries to compensate.
+  const bitsPerQuery = Math.max(rateExp / k, 0.01);
   const securityLevel = Math.floor(queriesPerRound * bitsPerQuery);
 
   // Proof size estimate: each query opens a Merkle path of depth log2(domainSize/rate).
@@ -220,141 +223,130 @@ export function S8_RecursiveStructure() {
         size <InlineMath tex="2^{25}" />) — leanMultisig scale.
       </p>
 
+      <p className="mb-4">
+        Try moving each slider one at a time to see how a single parameter
+        affects security, proof size, and proving/verification time. Then
+        hit <strong>leanMultisig preset</strong> to see the real-world configuration.
+      </p>
       <div className="bg-bg-card border border-border rounded-lg p-5 space-y-5">
-        {/* Funnel SVG */}
-        <div className="overflow-x-auto flex justify-center">
-          <div className="space-y-1" style={{ maxWidth: maxBarWidth + 100 }}>
-            {iterations.map((it, i) => {
-              const isBase = i === iterations.length - 1;
-              const fraction = it.domainSize / Math.pow(2, TOTAL_VARS);
-              const barWidth = Math.max(fraction * maxBarWidth, 40);
-              return (
-                <motion.div
-                  key={`${k}-${i}`}
-                  className="flex items-center gap-3"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.06 }}
-                >
-                  <div className="w-16 text-right text-[11px] font-mono text-text-muted shrink-0">
-                    {isBase ? 'Base' : `Iter ${it.iteration}`}
-                  </div>
-                  <motion.div
-                    className={`h-5 rounded-md flex items-center justify-center text-[10px] font-semibold ${
-                      isBase
-                        ? 'bg-green/15 border border-green/30 text-green'
-                        : 'bg-sienna/10 border border-sienna/20 text-sienna'
-                    }`}
-                    initial={{ width: 0 }}
-                    animate={{ width: barWidth }}
-                    transition={{ duration: 0.4, delay: i * 0.06, ease: 'easeOut' }}
-                    style={{ minWidth: 40 }}
-                  >
-                    {!isBase && (
-                      <span className="truncate px-2">
-                        2{'\u207b'}{'\u00b9'} {'\u00d7'} ... {it.domainSize > 8 ? `2^${it.numVars}` : it.domainSize}
-                      </span>
-                    )}
-                    {isBase && '\u2713'}
-                  </motion.div>
-                  <div className="text-[10px] text-text-muted shrink-0 w-36">
-                    {isBase ? (
-                      <span className="text-green font-semibold">Direct check</span>
-                    ) : (
-                      <>
-                        domain = 2<sup>{it.numVars}</sup> = {it.domainSize},
-                        {' '}{it.numVars} vars
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
+        {/* Sliders + Reset */}
+        <div className="flex items-end gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+            <Slider
+              label="k (folding parameter)"
+              value={k}
+              min={1}
+              max={8}
+              onChange={setK}
+              displayValue={`k = ${k}`}
+            />
+            <Slider
+              label="ρ (code rate)"
+              value={rateExp}
+              min={1}
+              max={4}
+              onChange={setRateExp}
+              displayValue={`1/${Math.pow(2, rateExp)}`}
+            />
+            <Slider
+              label="t (queries per round)"
+              value={queriesPerRound}
+              min={16}
+              max={256}
+              step={8}
+              onChange={setQueriesPerRound}
+              displayValue={`${queriesPerRound}`}
+            />
           </div>
+          <Button variant="secondary" onClick={() => { setK(1); setRateExp(1); setQueriesPerRound(16); }}>
+            Reset
+          </Button>
         </div>
 
-        {/* Summary stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Slider
-            label="k (folding parameter)"
-            value={k}
-            min={1}
-            max={8}
-            onChange={setK}
-            displayValue={`k = ${k}`}
-          />
-          <Slider
-            label="ρ (code rate)"
-            value={rateExp}
-            min={1}
-            max={4}
-            onChange={setRateExp}
-            displayValue={`1/${Math.pow(2, rateExp)}`}
-          />
-          <Slider
-            label="t (queries per round)"
-            value={queriesPerRound}
-            min={16}
-            max={256}
-            step={8}
-            onChange={setQueriesPerRound}
-            displayValue={`${queriesPerRound}`}
-          />
+        <div className="flex items-center justify-end">
+          <button
+            onClick={() => { setK(7); setRateExp(1); setQueriesPerRound(100); }}
+            className="cursor-pointer text-[11px] text-text-muted hover:text-sienna transition-colors underline underline-offset-2"
+          >
+            Apply leanMultisig preset (k=7, ρ=1/2, t=100)
+          </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Iterations</div>
-            <motion.div key={totalIterations} className="text-xl font-bold text-sienna font-mono" initial={{ scale: 1.2 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}>
-              {totalIterations}
-            </motion.div>
-          </div>
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Sumcheck rounds</div>
-            <div className="text-xl font-bold text-navy font-mono">{totalIterations * k}</div>
-          </div>
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Domain shrinkage</div>
-            <div className="text-xl font-bold text-green font-mono">2<sup>{k}</sup>{'\u00d7'}</div>
-            <div className="text-[10px] text-text-muted">per iteration</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Security level</div>
-            <motion.div key={securityLevel} className="text-xl font-bold text-navy font-mono" initial={{ scale: 1.2 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}>
-              {securityLevel}-bit
-            </motion.div>
-            <div className="text-[10px] text-text-muted">
-              {securityLevel < 32 ? '"phone passcode"'
+        {/* Metric bars — normalized horizontal bars for each output */}
+        {(() => {
+          const proofBytes = proofEstimate * 32;
+          const proveMs = proverHashes * 0.0001; // 100ns per hash → ms
+          const verifyMs = verifierHashes * 0.0001;
+          const metrics = [
+            {
+              label: 'Security',
+              value: `${securityLevel}-bit`,
+              sub: securityLevel < 8 ? '"what\'s security?"'
+                : securityLevel < 16 ? '"combination lock"'
+                : securityLevel < 32 ? '"phone passcode"'
                 : securityLevel < 64 ? '"your ex\'s birthday"'
                 : securityLevel < 80 ? '"DES, broken by EFF for $250k in 1998"'
                 : securityLevel < 100 ? '"NIST deprecated this range in 2010"'
                 : securityLevel < 128 ? '"100-bit — WHIR paper\'s benchmark target"'
                 : securityLevel < 192 ? '"AES-128 — what banks use"'
-                : '"AES-192 — classified military comms"'}
+                : '"AES-192 — classified military comms"',
+              pct: Math.min(securityLevel / 256, 1),
+              color: securityLevel >= 128 ? '#2f855a' : securityLevel >= 100 ? '#1a365d' : '#c53030',
+            },
+            {
+              label: 'Proof size',
+              value: proofBytes >= 1024 * 1024
+                ? `${(proofBytes / (1024 * 1024)).toFixed(1)} MB`
+                : proofBytes >= 1024
+                ? `${(proofBytes / 1024).toFixed(1)} KB`
+                : `${proofBytes} B`,
+              sub: `${proofEstimate.toLocaleString()} hashes × 32B`,
+              // Log scale: 1KB=0.1, 100KB=0.5, 10MB=1
+              pct: Math.min(Math.log10(Math.max(proofBytes, 1)) / 7, 1),
+              color: proofBytes < 100 * 1024 ? '#2f855a' : proofBytes < 1024 * 1024 ? '#1a365d' : '#c53030',
+            },
+            {
+              label: 'Proving time',
+              value: `~${formatTime(proverHashes)}`,
+              sub: `~${(proverHashes / 1e6).toFixed(1)}M hashes`,
+              // Log scale calibrated for m=25: ~6s (best) to ~600s (worst with high rate)
+              pct: Math.min(Math.max((Math.log10(Math.max(proveMs, 1)) - 3) / 3, 0.05), 1),
+              color: proveMs < 5000 ? '#2f855a' : proveMs < 30000 ? '#1a365d' : '#c53030',
+            },
+            {
+              label: 'Verification time',
+              value: `~${formatTime(verifierHashes)}`,
+              sub: `~${verifierHashes.toLocaleString()} hashes`,
+              // Log scale: 1µs=0.05, 1ms=0.3, 100ms=0.7
+              pct: Math.min((Math.log10(Math.max(verifyMs, 0.0001)) + 4) / 7, 1),
+              color: verifyMs < 1 ? '#2f855a' : verifyMs < 10 ? '#1a365d' : '#c53030',
+            },
+          ];
+          return (
+            <div className="space-y-3">
+              {metrics.map((m, i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-semibold text-text">{m.label}</span>
+                    <span className="text-[12px] font-mono font-bold" style={{ color: m.color }}>{m.value}</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-border overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: m.color }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${m.pct * 100}%` }}
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                    />
+                  </div>
+                  <div className="text-[9px] text-text-muted mt-0.5">{m.sub}</div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Proof size</div>
-            <motion.div key={proofEstimate} className="text-xl font-bold text-sienna font-mono" initial={{ scale: 1.2 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}>
-              ~{proofEstimate * 32 >= 1024 ? `${(proofEstimate * 32 / 1024).toFixed(1)} KB` : `${proofEstimate * 32} B`}
-            </motion.div>
-            <div className="text-[10px] text-text-muted">{proofEstimate} hashes × 32B</div>
-          </div>
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Est. proving</div>
-            <motion.div key={proverHashes} className="text-lg font-bold text-sienna font-mono" initial={{ scale: 1.2 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}>
-              ~{formatTime(proverHashes)}
-            </motion.div>
-          </div>
-          <div className="bg-bg rounded-md border border-border-light p-3">
-            <div className="text-[10px] text-text-muted uppercase tracking-wide">Est. verifying</div>
-            <motion.div key={verifierHashes} className="text-lg font-bold text-green font-mono" initial={{ scale: 1.2 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}>
-              ~{formatTime(verifierHashes)}
-            </motion.div>
-          </div>
-        </div>
+          );
+        })()}
+
+
         <div className="text-[9px] text-text-muted text-center">
           Time estimates assume ~100ns/hash (Poseidon-like). Actual times vary with hardware and hash function.
         </div>
