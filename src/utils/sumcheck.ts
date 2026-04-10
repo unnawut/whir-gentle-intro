@@ -92,14 +92,19 @@ export function sumcheckRound(
   }
 
   // First, partially evaluate the table by fixing variables 0..roundIndex-1.
+  // LSB convention: variable i corresponds to bit i of the table index, so when
+  // we fix variable 0, entries with bit 0 = 0 are at even indices and entries
+  // with bit 0 = 1 are at odd indices. After peeling variable 0, the newly
+  // exposed variable (variable 1 in the original numbering) is again at bit 0
+  // of the reduced table, so the same indexing pattern applies every round.
   let table = poly.values.map((v) => mod(v));
   for (let i = 0; i < roundIndex; i++) {
     const ri = mod(previousChallenges[i]);
     const half = table.length / 2;
     const newTable: FieldElement[] = [];
     for (let j = 0; j < half; j++) {
-      const v0 = table[j];
-      const v1 = table[j + half];
+      const v0 = table[2 * j];       // variable i = 0 (LSB)
+      const v1 = table[2 * j + 1];   // variable i = 1
       newTable.push(add(mul(sub(1, ri), v0), mul(ri, v1)));
     }
     table = newTable;

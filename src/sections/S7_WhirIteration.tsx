@@ -1,113 +1,7 @@
-import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Section } from '../components/Section';
 import { Math as InlineMath } from '../components/MathBlock';
-import { StepNavigator } from '../components/ui/StepNavigator';
-import { mod, generateSubgroup } from '../utils/field';
-import { evaluateAll } from '../utils/polynomial';
-import type { Poly } from '../utils/polynomial';
-import { evaluate } from '../utils/polynomial';
-import { foldDetailed } from '../utils/folding';
-import type { MultilinearPoly } from '../utils/sumcheck';
-import { simulateFullSumcheck } from '../utils/sumcheck';
-
-// A concrete small example: polynomial f(x) = 3 + 2x + 5x^2 + x^3, degree < 4, domain size 8
-const POLY: Poly = [3, 2, 5, 1];
-const K = 2; // 2 sumcheck rounds per iteration
-
-// Pre-selected challenges for deterministic demo
-const SUMCHECK_CHALLENGES = [7, 11];
-const FOLD_ALPHA = 5;
-const OOD_POINT = 6; // out-of-domain point (not in domain)
-const SHIFT_QUERY_INDICES = [0, 2]; // query these indices of the folded domain
-
-function ProtocolMessage({
-  sender,
-  children,
-  delay = 0,
-}: {
-  sender: 'prover' | 'verifier';
-  children: React.ReactNode;
-  delay?: number;
-}) {
-  const isProver = sender === 'prover';
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: isProver ? -20 : 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay }}
-      className={`flex ${isProver ? 'justify-start' : 'justify-end'} mb-3`}
-    >
-      <div
-        className={`max-w-[85%] rounded-lg p-3 text-sm ${
-          isProver
-            ? 'bg-sienna/5 border border-sienna/20 rounded-bl-none'
-            : 'bg-navy/5 border border-navy/20 rounded-br-none'
-        }`}
-      >
-        <div
-          className={`text-[10px] font-semibold uppercase tracking-wide mb-1 ${
-            isProver ? 'text-sienna' : 'text-navy'
-          }`}
-        >
-          {isProver ? 'Prover' : 'Verifier'}
-        </div>
-        <div className="text-text-muted">{children}</div>
-      </div>
-    </motion.div>
-  );
-}
-
-const stepLabels = [
-  'Sumcheck Rounds',
-  'Send Folded Function',
-  'Out-of-Domain Sample',
-  'Out-of-Domain Answer',
-  'Shift Queries',
-  'Recursive Claim',
-];
 
 export function S7_WhirIteration() {
-  const [step, setStep] = useState(0);
-
-  const domain = useMemo(() => generateSubgroup(8), []);
-  const evals = useMemo(() => evaluateAll(POLY, domain), [domain]);
-
-  // Run sumcheck on a multilinear poly built from first 4 evals
-  const mlPoly: MultilinearPoly = useMemo(
-    () => ({
-      values: evals.slice(0, 4).map((v) => mod(v)),
-      numVars: K,
-    }),
-    [evals]
-  );
-
-  const sumcheckResult = useMemo(
-    () => simulateFullSumcheck(mlPoly, SUMCHECK_CHALLENGES),
-    [mlPoly]
-  );
-
-  // Fold
-  const foldResult = useMemo(
-    () => foldDetailed(evals, domain, mod(FOLD_ALPHA)),
-    [evals, domain]
-  );
-
-  // Out-of-domain answer (simplified: use first folded eval as placeholder)
-  const oodAnswer = mod(foldResult.foldedEvals[0]);
-
-  // Shift queries
-  const shiftQueries = useMemo(() => {
-    return SHIFT_QUERY_INDICES.map((idx) => {
-      const i = idx % foldResult.foldedDomain.length;
-      return {
-        point: foldResult.foldedDomain[i],
-        value: foldResult.foldedEvals[i],
-        pass: true,
-      };
-    });
-  }, [foldResult]);
-
   return (
     <Section
       id="one-iteration"
@@ -116,288 +10,217 @@ export function S7_WhirIteration() {
       subtitle="The core protocol: sumcheck, fold, sample, query, recurse."
     >
       <p>
-        A single WHIR iteration takes a proximity claim about a function on a domain of
-        size <InlineMath tex="n" /> and reduces it to a claim about a function on a domain
-        of size <InlineMath tex="n/2" />. Inside leanMultisig, this is the core loop that shrinks
-        the committed polynomial — the stacked columns of the execution table, Poseidon table,
-        and extension op table — until it is small enough to check directly. This section
-        walks through all 6 sub-steps of one iteration as a conversation between the prover
-        and verifier.
+        Here's what we've built up so far. The prover has a big table of numbers
+        (the execution trace and related tables) and wants to convince the verifier of two things at once:
+      </p>
+      <ol className="list-decimal ml-6 my-4 space-y-1">
+        <li><strong>Of low-degree polynomial</strong> — the trace hasn't been tampered.</li>
+        <li><strong>Satisfies constraints</strong> — that polynomial satisfies the required equations, meaning the computation was executed correctly.</li>
+      </ol>
+      <p className="my-4">
+        The previous sections gave us one piece each:
+      </p>
+      <ul className="list-disc ml-6 my-4 space-y-2">
+        <li>
+          <strong>Section 3 (CRS)</strong> — encoded the execution trace as a
+          polynomial, defined the constraint each
+          row must satisfy (e.g. <em>output − input₁ − input₂ = 0</em>), and
+          checked it row by row. A Constrained Reed-Solomon code combines both: a
+          low-degree polynomial that also satisfies the constraint.
+        </li>
+        <li>
+          <strong>Section 4 (Sumcheck)</strong> — collapses the constraint check
+          across all rows into a single evaluation.
+        </li>
+        <li>
+          <strong>Section 5 (Folding)</strong> — shrinks the polynomial onto a
+          half-sized domain, so the problem gets smaller each round.
+        </li>
+      </ul>
+      <p className="my-4">
+        Two new ideas appear here. The <strong>out-of-domain probe</strong>: a
+        cheating prover could fake values that look correct at every domain point
+        but diverge elsewhere — the verifier catches this by testing at a random
+        surprise point outside the domain. And <strong>consistency queries</strong>: the
+        verifier spot-checks a few positions from the original committed polynomial
+        to verify the folding was done correctly, rather than re-doing the entire
+        fold.
+      </p>
+      <p className="my-4">
+        Each iteration follows the same five moves, alternating between prover and
+        verifier:
+      </p>
+      <ol className="list-decimal ml-6 my-4 space-y-2">
+        <li>
+          <strong>Sumcheck rounds</strong> — the prover runs <InlineMath tex="k" /> rounds of sumcheck, collapsing the algebraic constraint one variable at a time.
+        </li>
+        <li>
+          <strong>Send folded function</strong> — using the sumcheck challenges as folding randomness, the prover halves the polynomial's domain and sends the new evaluations.
+        </li>
+        <li>
+          <strong>Out-of-domain probe</strong> — the prover evaluates the folded polynomial at a challenge point <em>outside</em> the domain.
+        </li>
+        <li>
+          <strong>Consistency queries</strong> — the verifier opens a few Merkle positions from the committed polynomial and checks the fold was computed correctly.
+        </li>
+        <li>
+          <strong>Rinse and repeat</strong> — the output becomes the input to the next iteration, now on a half-sized domain.
+        </li>
+      </ol>
+      <p className="my-4">
+        Note that <strong>CRS isn't one of the steps</strong> — it's the shape of
+        the claim that flows in and out. Steps 1–2 transform the claim, steps 3–4
+        check that the transformation was honest, and step 5 restates the result
+        as a new (smaller) CRS claim for the next iteration.
+      </p>
+      {/* Shrinking CRS illustration with pipeline boxes */}
+      {(() => {
+        const circles = [
+          { label: 'Start', points: 8, r: 48 },
+          { label: 'After iter 1', points: 4, r: 36 },
+          { label: 'After iter 2', points: 2, r: 24 },
+        ];
+        const maxR = 48;
+        const ga = Math.PI * (3 - Math.sqrt(5));
+        return (
+          <div className="my-6">
+            <div className="flex items-center justify-center gap-1">
+              {circles.map((step, si) => {
+                const size = step.r * 2 + 20;
+                const cx = size / 2;
+                const cy = size / 2;
+                return (
+                  <div key={si} className="flex items-center gap-1">
+                    {si > 0 && (
+                      <div className="flex flex-col items-center gap-0.5 shrink-0">
+                        {/* Sumcheck: many dots funneling to one */}
+                        <svg width="50" height="36" viewBox="0 0 50 36">
+                          {[8, 16, 24, 32, 42].map((x, i) => (
+                            <line key={i} x1={x} y1={4} x2={25} y2={28} stroke="#8b4513" strokeWidth={0.8} strokeOpacity={0.4} />
+                          ))}
+                          {[8, 16, 24, 32, 42].map((x, i) => (
+                            <circle key={`d${i}`} cx={x} cy={4} r={2.5} fill="#8b4513" fillOpacity={0.4} />
+                          ))}
+                          <circle cx={25} cy={28} r={3.5} fill="#8b4513" />
+                        </svg>
+                        <span className="text-[7px] text-sienna font-mono">sumcheck</span>
+
+                        <svg width="12" height="6" viewBox="0 0 12 6">
+                          <polygon points="6,6 2,0 10,0" fill="#6b6375" />
+                        </svg>
+
+                        {/* Fold: pairs merging */}
+                        <svg width="50" height="32" viewBox="0 0 50 32">
+                          {Array.from({ length: circles[si - 1].points }).map((_, i) => {
+                            const x = 6 + (i * 38) / (circles[si - 1].points - 1);
+                            const tx = 6 + (Math.floor(i / 2) * 38) / Math.max(step.points - 1, 1);
+                            return (
+                              <g key={i}>
+                                <circle cx={x} cy={4} r={2.5} fill="#1a365d" fillOpacity={0.4} />
+                                <line x1={x} y1={7} x2={tx} y2={25} stroke="#1a365d" strokeWidth={0.8} strokeOpacity={0.3} />
+                              </g>
+                            );
+                          })}
+                          {Array.from({ length: step.points }).map((_, i) => {
+                            const tx = 6 + (i * 38) / Math.max(step.points - 1, 1);
+                            return <circle key={`f${i}`} cx={tx} cy={28} r={3} fill="#1a365d" fillOpacity={0.7} />;
+                          })}
+                        </svg>
+                        <span className="text-[7px] text-navy font-mono">fold {circles[si - 1].points}→{step.points}</span>
+
+                        <svg width="12" height="6" viewBox="0 0 12 6">
+                          <polygon points="6,6 2,0 10,0" fill="#6b6375" />
+                        </svg>
+
+                        {/* OOD probe: circle with a dot outside */}
+                        <svg width="50" height="32" viewBox="0 0 50 32">
+                          <circle cx={20} cy={16} r={12} fill="#fefdfb" stroke="#1a365d" strokeWidth={1.5} />
+                          {Array.from({ length: 3 }).map((_, i) => {
+                            const a = (i * 2.4) + 0.5;
+                            return <circle key={i} cx={20 + 6 * Math.cos(a)} cy={16 + 6 * Math.sin(a)} r={2} fill="#1a365d" fillOpacity={0.4} />;
+                          })}
+                          <circle cx={40} cy={10} r={3.5} fill="#2f855a" stroke="#2f855a" strokeWidth={1} />
+                          <text x={40} y={23} textAnchor="middle" fontSize="7" fill="#2f855a" fontFamily="monospace">?</text>
+                        </svg>
+                        <span className="text-[7px] text-green font-mono">OOD probe</span>
+
+                        <svg width="12" height="6" viewBox="0 0 12 6">
+                          <polygon points="6,6 2,0 10,0" fill="#6b6375" />
+                        </svg>
+
+                        {/* Queries: circle with ringed sampled dots */}
+                        <svg width="50" height="32" viewBox="0 0 50 32">
+                          <circle cx={25} cy={16} r={12} fill="#fefdfb" stroke="#1a365d" strokeWidth={1.5} />
+                          {Array.from({ length: 4 }).map((_, i) => {
+                            const a = (i * 1.7) + 0.3;
+                            const dx = 25 + 7 * Math.cos(a);
+                            const dy = 16 + 7 * Math.sin(a);
+                            const sampled = i < 2;
+                            return (
+                              <g key={i}>
+                                <circle cx={dx} cy={dy} r={2} fill="#1a365d" fillOpacity={0.4} />
+                                {sampled && <circle cx={dx} cy={dy} r={5} fill="none" stroke="#2f855a" strokeWidth={1.5} />}
+                              </g>
+                            );
+                          })}
+                        </svg>
+                        <span className="text-[7px] text-green font-mono">queries</span>
+
+                        <svg width="22" height="12" viewBox="0 0 22 12">
+                          <line x1="1" y1="6" x2="15" y2="6" stroke="#6b6375" strokeWidth="1.5" />
+                          <polygon points="15,2 21,6 15,10" fill="#6b6375" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center justify-center" style={{ height: maxR * 2 + 20 }}>
+                      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                        <circle cx={cx} cy={cy} r={step.r} fill="#fefdfb" stroke="#1a365d" strokeWidth={2} />
+                        {Array.from({ length: step.points }).map((_, i) => {
+                          const r = Math.sqrt((i + 0.5) / step.points) * (step.r - 6);
+                          const angle = i * ga;
+                          const dx = cx + r * Math.cos(angle);
+                          const dy = cy + r * Math.sin(angle);
+                          return (
+                            <circle key={i} cx={dx} cy={dy} r={3.5} fill="#1a365d" fillOpacity={0.5} />
+                          );
+                        })}
+                      </svg>
+                      </div>
+                      <span className="text-[10px] text-text-muted font-mono">{step.label}</span>
+                      <span className="text-[10px] text-text-muted">{step.points} pts</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-center gap-5 mt-2 text-[10px] text-text-muted">
+              <span className="flex items-center gap-1.5">
+                <svg width="16" height="16" viewBox="0 0 20 20">
+                  <circle cx="10" cy="10" r="8" fill="#fefdfb" stroke="#1a365d" strokeWidth="2" />
+                </svg>
+                domain (evaluation points)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg width="8" height="8" viewBox="0 0 8 8">
+                  <circle cx="4" cy="4" r="3.5" fill="#1a365d" fillOpacity="0.5" />
+                </svg>
+                committed polynomial values
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
+      <p className="my-4">
+        A single <em>WHIR iteration</em> runs these back-to-back: sumcheck
+        collapses the constraint to a single evaluation, then folding cuts the
+        table in half. The
+        output is the same kind of problem — still "is this a CRS codeword?" — just
+        on a smaller table. Repeat a few times and the table becomes small enough
+        for the verifier to check directly.
       </p>
 
-      <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
-        <h4 className="font-heading font-semibold text-sm text-text mb-2">
-          Our example setup:
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm font-mono text-text-muted">
-          <div className="bg-bg rounded p-2 border border-border-light">
-            <span className="text-[10px] text-text-muted block">Polynomial</span>
-            <span className="text-text">3+2x+5x{'\u00b2'}+x{'\u00b3'}</span>
-          </div>
-          <div className="bg-bg rounded p-2 border border-border-light">
-            <span className="text-[10px] text-text-muted block">Domain size</span>
-            <span className="text-text">8</span>
-          </div>
-          <div className="bg-bg rounded p-2 border border-border-light">
-            <span className="text-[10px] text-text-muted block">Field</span>
-            <span className="text-text">F{'\u2081'}{'\u2087'}</span>
-          </div>
-          <div className="bg-bg rounded p-2 border border-border-light">
-            <span className="text-[10px] text-text-muted block">k (rounds)</span>
-            <span className="text-text">{K}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-bg-card border border-border rounded-lg p-5 space-y-5">
-        {/* State panel */}
-        <div className="flex flex-wrap gap-3">
-          <div
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-              step < 5
-                ? 'bg-sienna/5 border-sienna/20 text-sienna'
-                : 'bg-green/5 border-green/20 text-green'
-            }`}
-          >
-            Domain: {step >= 5 ? foldResult.foldedDomain.length : domain.length} points
-          </div>
-          <div className="px-3 py-1.5 rounded-md text-xs font-semibold border bg-navy/5 border-navy/20 text-navy">
-            Variables: {step >= 5 ? 'log\u2082(' + foldResult.foldedDomain.length + ')' : 'log\u2082(8) = 3'}
-          </div>
-          <div className="px-3 py-1.5 rounded-md text-xs font-semibold border bg-bg border-border-light text-text-muted">
-            Rate {'\u03c1'}: 1/2
-          </div>
-        </div>
-
-        <div className="text-[11px] text-text-muted bg-bg border border-border-light rounded px-3 py-2 mb-1">
-          <strong>LeanMultisig scale:</strong> The initial state would be domain size 2<sup>26</sup>, 25 variables, rate 1/2.
-          After one iteration with k=7: domain 2<sup>19</sup>, 18 variables.
-          (This demo uses a tiny example for illustration.)
-        </div>
-
-        <StepNavigator
-          step={step}
-          totalSteps={6}
-          onPrev={() => setStep((s) => Math.max(0, s - 1))}
-          onNext={() => setStep((s) => Math.min(5, s + 1))}
-          labels={stepLabels}
-        />
-
-        {/* Protocol transcript */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-            className="min-h-[200px]"
-          >
-            {step === 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-muted mb-3">
-                  The prover and verifier run {K} rounds of the sumcheck protocol to reduce
-                  the constraint from a sum over the hypercube to a single evaluation.
-                  In leanMultisig, these sumcheck rounds reduce the AIR constraint check over 2<sup>25</sup> rows
-                  to a claim about a single evaluation point.
-                </p>
-                {sumcheckResult.rounds.map((rd, i) => (
-                  <div key={i}>
-                    <ProtocolMessage sender="prover" delay={i * 0.2}>
-                      <strong>Round {i + 1}:</strong> Here is my univariate polynomial{' '}
-                      <InlineMath tex={`p_{${i + 1}}(X) = ${rd.univariate[0]} + ${rd.univariate[1]}X`} />.
-                      <br />
-                      <span className="font-mono text-[11px]">
-                        p(0) + p(1) = {evaluate(rd.univariate, 0)} + {evaluate(rd.univariate, 1)} = {mod(evaluate(rd.univariate, 0) + evaluate(rd.univariate, 1))}
-                      </span>
-                    </ProtocolMessage>
-                    <ProtocolMessage sender="verifier" delay={i * 0.2 + 0.1}>
-                      {rd.check ? (
-                        <span className="text-green">{'\u2713'} Check passed.</span>
-                      ) : (
-                        <span className="text-red">{'\u2717'} Check failed!</span>
-                      )}{' '}
-                      My random challenge: <InlineMath tex={`\\alpha_{${i + 1}} = ${rd.challenge}`} />.
-                    </ProtocolMessage>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-muted mb-3">
-                  The prover folds the committed polynomial — in leanMultisig, this is the stacked
-                  polynomial containing all table columns (execution, Poseidon, extension ops) —
-                  producing a new function on a domain half the size.
-                  Concretely, the prover computes{' '}
-                  <InlineMath tex={`g = \\text{Fold}(f, ${FOLD_ALPHA})`} /> and sends its
-                  evaluations to the verifier.
-                </p>
-                <ProtocolMessage sender="prover">
-                  Here are the evaluations of the folded function g on the squared domain:
-                  <div className="mt-2 font-mono text-[11px] space-y-0.5">
-                    {foldResult.foldedDomain.map((d, i) => (
-                      <div key={i}>
-                        g({d}) = {foldResult.foldedEvals[i]}
-                      </div>
-                    ))}
-                  </div>
-                </ProtocolMessage>
-                <ProtocolMessage sender="verifier" delay={0.2}>
-                  Received. The domain has shrunk from {domain.length} to{' '}
-                  {foldResult.foldedDomain.length} points.
-                </ProtocolMessage>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-muted mb-3">
-                  The verifier picks a random point <InlineMath tex="z_0" />{' '}
-                  <em>outside</em> the evaluation domain. This is crucial for
-                  soundness — it prevents the prover from crafting evaluations that only
-                  look correct on the domain.
-                </p>
-                <ProtocolMessage sender="verifier">
-                  I want to test you at a random out-of-domain point:{' '}
-                  <InlineMath tex={`z_0 = ${OOD_POINT}`} />.
-                  <br />
-                  <span className="text-[11px]">
-                    (This point is not in the evaluation domain [{foldResult.foldedDomain.join(', ')}])
-                  </span>
-                </ProtocolMessage>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-muted mb-3">
-                  The prover evaluates the low-degree extension of{' '}
-                  <InlineMath tex="g" /> at <InlineMath tex={`z_0 = ${OOD_POINT}`} /> and
-                  responds. The verifier will use this to cross-check consistency later.
-                </p>
-                <ProtocolMessage sender="prover">
-                  My answer: <InlineMath tex={`\\hat{g}(${OOD_POINT}) = ${oodAnswer}`} />.
-                </ProtocolMessage>
-                <ProtocolMessage sender="verifier" delay={0.15}>
-                  Noted. I will verify this is consistent with the folded evaluations.
-                </ProtocolMessage>
-              </div>
-            )}
-
-            {step === 4 && (
-              <div className="space-y-2">
-                <p className="text-sm text-text-muted mb-3">
-                  The verifier samples random points from the domain and checks that the
-                  folding was computed correctly. In leanMultisig, these are Merkle path
-                  openings — the verifier reads a few positions from the committed
-                  polynomial and checks fold consistency.
-                </p>
-                <ProtocolMessage sender="verifier">
-                  I am querying the following points to check folding consistency:
-                </ProtocolMessage>
-                {shiftQueries.map((q, i) => (
-                  <ProtocolMessage key={i} sender="prover" delay={(i + 1) * 0.15}>
-                    Query at domain point {q.point}: g({q.point}) = {q.value}{' '}
-                    {q.pass ? (
-                      <span className="text-green font-semibold">{'\u2713'} Consistent</span>
-                    ) : (
-                      <span className="text-red font-semibold">{'\u2717'} Inconsistent</span>
-                    )}
-                  </ProtocolMessage>
-                ))}
-                <div className="mt-2 p-2 bg-green/5 border border-green/20 rounded text-sm text-green font-semibold text-center">
-                  All {shiftQueries.length} queries passed
-                </div>
-              </div>
-            )}
-
-            {step === 5 && (
-              <div className="space-y-3">
-                <p className="text-sm text-text-muted mb-3">
-                  The new problem is smaller: fewer variables, smaller domain. In leanMultisig,
-                  this shrinks from ~2<sup>26</sup> to ~2<sup>19</sup> in one iteration
-                  (with folding parameter k=7). Both parties agree on the new, smaller
-                  proximity claim.
-                </p>
-                <ProtocolMessage sender="prover">
-                  I commit to the new function g on the smaller domain.
-                </ProtocolMessage>
-                <ProtocolMessage sender="verifier" delay={0.15}>
-                  Agreed. The new claim is:
-                </ProtocolMessage>
-                <div className="bg-bg border border-border-light rounded-md p-4 space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
-                    <div>
-                      <div className="text-[10px] text-text-muted uppercase tracking-wide">
-                        Domain
-                      </div>
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-text-muted line-through text-sm">{domain.length}</span>
-                        <span className="text-lg">{'\u2192'}</span>
-                        <span className="text-green font-bold text-lg">
-                          {foldResult.foldedDomain.length}
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-text-muted uppercase tracking-wide">
-                        Max degree
-                      </div>
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-text-muted line-through text-sm">4</span>
-                        <span className="text-lg">{'\u2192'}</span>
-                        <span className="text-green font-bold text-lg">2</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-text-muted uppercase tracking-wide">
-                        Variables
-                      </div>
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-text-muted line-through text-sm">3</span>
-                        <span className="text-lg">{'\u2192'}</span>
-                        <span className="text-green font-bold text-lg">2</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-text-muted text-center mt-2">
-                    The problem is now half the size. Repeat until the base case!
-                    In leanMultisig with k=7, this takes only ~4 iterations to go from 25 variables down to zero.
-                  </p>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
-        <h4 className="font-heading font-semibold text-base text-text mb-2">
-          Summary of one iteration
-        </h4>
-        <ol className="list-decimal list-inside text-sm text-text-muted space-y-1">
-          <li>
-            <strong>Sumcheck</strong> reduces the algebraic constraint (k rounds)
-          </li>
-          <li>
-            <strong>Fold</strong> halves the function domain
-          </li>
-          <li>
-            <strong>Out-of-domain sample</strong> tests the prover at a random point
-          </li>
-          <li>
-            <strong>Out-of-domain answer</strong> from the prover
-          </li>
-          <li>
-            <strong>Shift queries</strong> verify folding consistency
-          </li>
-          <li>
-            <strong>Recursive claim</strong> defines the next, smaller problem
-          </li>
-        </ol>
-      </div>
     </Section>
   );
 }
