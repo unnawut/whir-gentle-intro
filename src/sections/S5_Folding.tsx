@@ -29,7 +29,7 @@ const INITIAL_POLY: Poly = (() => {
 // Fixed folding challenge (in WHIR this would come from Fiat-Shamir / sumcheck).
 const ALPHA = 3;
 
-export function S6_Folding() {
+export function S5_Folding() {
   const [tamperIdx, setTamperIdx] = useState<number | null>(null);
   const [foldCount, setFoldCount] = useState(0);
 

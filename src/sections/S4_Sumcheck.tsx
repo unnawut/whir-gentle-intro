@@ -30,7 +30,7 @@ const stepLabels = [
   'The Full Sumcheck Transcript',
 ];
 
-export function S5_Sumcheck() {
+export function S4_Sumcheck() {
   const [step, setStep] = useState(0);
   // Charlie's score slider — defaults to honest value (4)
   const [charlieOverride, setCharlieOverride] = useState<number | null>(null);

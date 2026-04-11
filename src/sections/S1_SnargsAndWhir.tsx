@@ -35,7 +35,7 @@ const stages = [
   },
 ];
 
-export function S1_WhatProblem() {
+export function S1_SnargsAndWhir() {
   const [activeStage, setActiveStage] = useState<string | null>(null);
 
   const boxWidth = 220;

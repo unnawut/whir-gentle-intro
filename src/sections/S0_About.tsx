@@ -1,7 +1,7 @@
 import { Section } from '../components/Section';
 import { Math as InlineMath } from '../components/MathBlock';
 
-export function S0_Introduction() {
+export function S0_About() {
   return (
     <Section
       id="introduction"

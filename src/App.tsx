@@ -1,26 +1,26 @@
 import { useState, useEffect } from 'react'
 import { Layout } from './components/Layout'
 import { SECTIONS } from './sections'
-import { S0_Introduction } from './sections/S0_Introduction'
-import { S1_WhatProblem } from './sections/S1_WhatProblem'
-import { S3_ReedSolomon } from './sections/S3_ReedSolomon'
-import { S4_ConstrainedRS } from './sections/S4_ConstrainedRS'
-import { S5_Sumcheck } from './sections/S5_Sumcheck'
-import { S6_Folding } from './sections/S6_Folding'
-import { S7_WhirIteration } from './sections/S7_WhirIteration'
-import { S8_RecursiveStructure } from './sections/S8_RecursiveStructure'
-import { S9_Performance } from './sections/S9_Performance'
+import { S0_About } from './sections/S0_About'
+import { S1_SnargsAndWhir } from './sections/S1_SnargsAndWhir'
+import { S2_ReedSolomon } from './sections/S2_ReedSolomon'
+import { S3_ConstrainedRS } from './sections/S3_ConstrainedRS'
+import { S4_Sumcheck } from './sections/S4_Sumcheck'
+import { S5_Folding } from './sections/S5_Folding'
+import { S6_WhirProtocol } from './sections/S6_WhirProtocol'
+import { S7_TuningProtocol } from './sections/S7_TuningProtocol'
+import { S8_Summary } from './sections/S8_Summary'
 
 const SECTION_COMPONENTS = [
-  S0_Introduction,
-  S1_WhatProblem,
-  S3_ReedSolomon,
-  S4_ConstrainedRS,
-  S5_Sumcheck,
-  S6_Folding,
-  S7_WhirIteration,
-  S8_RecursiveStructure,
-  S9_Performance,
+  S0_About,
+  S1_SnargsAndWhir,
+  S2_ReedSolomon,
+  S3_ConstrainedRS,
+  S4_Sumcheck,
+  S5_Folding,
+  S6_WhirProtocol,
+  S7_TuningProtocol,
+  S8_Summary,
 ]
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') // e.g. "/whir-visualizer"

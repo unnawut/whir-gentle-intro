@@ -338,7 +338,7 @@ function CostComparison({ traceRows }: { traceRows: number }) {
   );
 }
 
-export function S3_ReedSolomon() {
+export function S2_ReedSolomon() {
   return (
     <Section
       id="reed-solomon"

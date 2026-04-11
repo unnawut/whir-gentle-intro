@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button';
 
 const TOTAL_VARS = 25; // m = 25, so domain size = 2^25 (leanMultisig scale)
 
-export function S8_RecursiveStructure() {
+export function S7_TuningProtocol() {
   const [k, setK] = useState(1);
   const [rateExp, setRateExp] = useState(1); // ρ = 1/2^rateExp, so 1 → 1/2, 2 → 1/4
   const [queriesPerRound, setQueriesPerRound] = useState(16);

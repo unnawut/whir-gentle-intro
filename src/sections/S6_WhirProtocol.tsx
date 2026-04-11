@@ -4,7 +4,7 @@ import { Section } from '../components/Section';
 import { Math as InlineMath } from '../components/MathBlock';
 import { Button } from '../components/ui/Button';
 
-export function S7_WhirIteration() {
+export function S6_WhirProtocol() {
   return (
     <Section
       id="one-iteration"

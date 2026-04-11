@@ -5,7 +5,7 @@ import { Math as InlineMath, MathBlock } from '../components/MathBlock';
 import { Slider } from '../components/ui/Slider';
 import { mod } from '../utils/field';
 
-export function S4_ConstrainedRS() {
+export function S3_ConstrainedRS() {
   // Inputs for the ADD chain — 3 referees
   const [a, setA] = useState(3);  // Alice
   const [b, setB] = useState(1);  // Bob

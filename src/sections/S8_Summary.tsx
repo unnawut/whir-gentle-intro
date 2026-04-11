@@ -19,7 +19,7 @@ const PROTOCOL_COLORS: Record<string, string> = {
   BaseFold: '#6b6375',
 };
 
-export function S9_Performance() {
+export function S8_Summary() {
   return (
     <Section
       id="why-fast"
