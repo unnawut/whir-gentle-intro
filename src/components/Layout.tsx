@@ -68,7 +68,7 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
           <h1 className="font-heading text-3xl font-bold text-navy tracking-tight">
             WHIR
           </h1>
-          <p className="text-xs text-text-muted mt-1">Protocol Visualizer</p>
+          <p className="text-xs text-text-muted mt-1">A Gentle Introduction</p>
         </button>
         <div className="flex-1 overflow-y-auto pb-8">{navLinks}</div>
       </aside>
