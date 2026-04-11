@@ -37,6 +37,72 @@ export function S0_Introduction() {
         software engineering background.
       </p>
 
+      <h3 id="the-papers" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
+        The Papers
+      </h3>
+      <div>
+        <ul className="space-y-2 list-disc ml-5">
+          <li>
+            <strong>WHIR</strong> — Gal Arnon, Alessandro Chiesa, Giacomo Fenzi, and
+            Eylon Yogev,{' '}
+            <a href="https://eprint.iacr.org/2024/1586" target="_blank" rel="noopener noreferrer" className="underline hover:text-sienna">
+              <em>"WHIR: Reed-Solomon Proximity Testing with Super-Fast Verification"</em>
+            </a> (2024).
+            This visualizer is based on the protocol described in that paper.
+          </li>
+          <li>
+            <strong>LeanMultisig</strong> —{' '}
+            <a href="https://github.com/leanEthereum/leanMultisig" target="_blank" rel="noopener noreferrer" className="underline hover:text-sienna">
+              <em>"Minimal zkVM for Lean Ethereum"</em>
+            </a> (draft 0.6.0).
+            Specifies how WHIR is used as the polynomial commitment scheme inside
+            a minimal zkVM for post-quantum signature aggregation on Ethereum.
+          </li>
+        </ul>
+      </div>
+
+      <h3 id="simplifications" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
+        Simplifications
+      </h3>
+      <div>
+        <p className="mb-3">
+          This visualizer prioritizes intuition over precision. A few places where
+          the presentation compresses or simplifies the real protocol:
+        </p>
+        <ul className="space-y-2 list-disc ml-5">
+          <li>
+            <strong>OOD probe and shift queries are presented as single steps.</strong> In
+            the actual protocol, the out-of-domain sample and the prover's response
+            are two separate messages (verifier sends the challenge, prover responds).
+            We merge them into one step for clarity.
+          </li>
+          <li>
+            <strong>The folding parameter <InlineMath tex="k" /> is shown as constant.</strong> In
+            leanMultisig, <InlineMath tex="k" /> varies per iteration (7 for the first
+            round, 5 for subsequent rounds). The visualizer uses a single value for
+            simplicity.
+          </li>
+          <li>
+            <strong>Security estimates are approximate.</strong> The real WHIR soundness
+            analysis uses the Johnson Bound and accounts for proximity gaps. Our
+            simplified model uses a basic union-bound formula that gives
+            directionally correct but not precise security levels.
+          </li>
+          <li>
+            <strong>Performance estimates absorb all costs into a single hash rate.</strong> Real
+            proving involves NTT, sumcheck computation, field arithmetic, and
+            parallelization — our ~12ns/hash effective rate is calibrated to match
+            reported benchmarks, not derived from first principles.
+          </li>
+          <li>
+            <strong>The referee example is a toy trace.</strong> LeanMultisig's execution
+            trace has ~20 columns per cycle (execution, Poseidon, extension ops)
+            stacked into one committed polynomial. The 3-referee / 4-row example
+            illustrates the concept without the full complexity.
+          </li>
+        </ul>
+      </div>
+
       <h3 id="how-demos-work" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
         How the Interactive Demos Work
       </h3>
@@ -46,84 +112,33 @@ export function S0_Introduction() {
         fields used in leanMultisig's production implementation.
       </p>
 
-      <div className="bg-bg-card border border-border rounded-lg p-5 my-6 space-y-4">
-        <div>
-          <div className="font-heading font-semibold text-sm text-text mb-1">
-            Demo field: <InlineMath tex="\mathbb{F}_{17}" /> — Production field: KoalaBear prime
-          </div>
-          <p className="text-sm text-text-muted">
-            The demos use <InlineMath tex="\mathbb{F}_{17}" /> (arithmetic modulo the
-            prime <InlineMath tex="p = 17" />) for readability. In leanMultisig, the field
-            is the <strong>KoalaBear prime</strong>{' '}
-            <InlineMath tex="p = 2^{31} - 2^{24} + 1" />, which fits in a single{' '}
-            <code>u32</code> and enables an efficient Poseidon2 S-box via the cubing
-            map <InlineMath tex="x \mapsto x^3" />. For 128-bit security in WHIR, leanMultisig works
-            over the degree-5 extension field <InlineMath tex="\mathbb{F}_{p^5}" />.
-          </p>
-        </div>
-
-        <div>
-          <div className="font-heading font-semibold text-sm text-text mb-1">
-            Multiplicative subgroup and domain
-          </div>
-          <p className="text-sm text-text-muted">
-            The multiplicative group of <InlineMath tex="\mathbb{F}_{17}^*" /> has order 16,
-            generated by the primitive root <InlineMath tex="g = 3" /> (meaning{' '}
-            <InlineMath tex="3^{16} \equiv 1 \pmod{17}" />). This gives us subgroups of size
-            16, 8, 4, and 2 — perfect for demonstrating the repeated domain halving that WHIR
-            relies on. The demos typically start with a domain of size 8 and fold down to 4,
-            then 2. In leanMultisig, the KoalaBear field has a much larger multiplicative group,
-            enabling commitment domains of up to <InlineMath tex="2^{30}" /> elements.
-          </p>
-        </div>
-
-        <div>
-          <div className="font-heading font-semibold text-sm text-text mb-1">
-            Polynomials
-          </div>
-          <p className="text-sm text-text-muted">
-            Polynomials are represented in coefficient form over{' '}
-            <InlineMath tex="\mathbb{F}_{17}" />. For example,{' '}
-            <InlineMath tex="f(x) = 2 + 5x + 3x^2" /> has coefficients{' '}
-            <InlineMath tex="[2, 5, 3]" /> and evaluations are computed via Horner's method.
-            Multilinear polynomials (used in the sumcheck demos) are stored as their{' '}
-            <InlineMath tex="2^m" /> evaluations over the boolean hypercube{' '}
-            <InlineMath tex="\{0,1\}^m" />. In leanMultisig, execution traces have up
-            to <InlineMath tex="2^{25}" /> rows with 20 committed columns per cycle — these
-            are encoded as multilinear polynomials and committed via WHIR.
-          </p>
-        </div>
-
-        <div>
-          <div className="font-heading font-semibold text-sm text-text mb-1">
-            Pre-selected randomness
-          </div>
-          <p className="text-sm text-text-muted">
-            In the real protocol, the verifier's challenges are random. In the demos, we use
-            fixed "random" values so that the walkthrough is deterministic and reproducible.
-            You can often adjust these values via sliders to see how different challenges
-            affect the computation.
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-bg-card border border-border rounded-lg p-5 mt-8">
-        <h4 className="font-heading font-semibold text-base text-text mb-2">
-          The Papers
-        </h4>
-        <p className="text-sm text-text-muted mb-2">
-          <strong>WHIR</strong> was introduced by Gal Arnon, Alessandro Chiesa, Giacomo Fenzi, and
-          Eylon Yogev in their 2024 paper{' '}
-          <em>"WHIR: Reed-Solomon Proximity Testing with Super-Fast Verification"</em>.
-          This visualizer is based on the protocol described in that paper.
-        </p>
-        <p className="text-sm text-text-muted">
-          <strong>LeanMultisig</strong> is described in{' '}
-          <em>"Minimal zkVM for Lean Ethereum"</em> (draft 0.6.0), which specifies how WHIR
-          is used as the polynomial commitment scheme inside a minimal zkVM tailored for
-          post-quantum signature aggregation on Ethereum.
-        </p>
-      </div>
+      <ul className="space-y-3 list-disc ml-5 mt-4">
+        <li>
+          <strong>Demo field: <InlineMath tex="\mathbb{F}_{17}" /></strong> — The demos
+          use <InlineMath tex="\mathbb{F}_{17}" /> (arithmetic modulo the
+          prime <InlineMath tex="p = 17" />) for readability. In leanMultisig, the field
+          is the <strong>KoalaBear prime</strong>{' '}
+          <InlineMath tex="p = 2^{31} - 2^{24} + 1" />, which fits in a single{' '}
+          <code>u32</code> and enables an efficient Poseidon2 S-box via the cubing
+          map <InlineMath tex="x \mapsto x^3" />. For 128-bit security in WHIR, leanMultisig works
+          over the degree-5 extension field <InlineMath tex="\mathbb{F}_{p^5}" />.
+        </li>
+        <li>
+          <strong>Multiplicative subgroup and domain</strong> — The multiplicative group
+          of <InlineMath tex="\mathbb{F}_{17}^*" /> has order 16,
+          generated by the primitive root <InlineMath tex="g = 3" /> (meaning{' '}
+          <InlineMath tex="3^{16} \equiv 1 \pmod{17}" />). This gives us subgroups of size
+          16, 8, 4, and 2 — perfect for demonstrating the repeated domain halving that WHIR
+          relies on. The demos typically start with a domain of size 8 and fold down to 4,
+          then 2. In leanMultisig, the KoalaBear field has a much larger multiplicative group,
+          enabling commitment domains of up to <InlineMath tex="2^{30}" /> elements.
+        </li>
+        <li>
+          <strong>Pre-selected randomness</strong> — In the real protocol, the verifier's
+          challenges are derived from hashing the transcript (Fiat-Shamir). In the demos,
+          we use fixed values so that the walkthrough is deterministic and reproducible.
+        </li>
+      </ul>
     </Section>
   );
 }
