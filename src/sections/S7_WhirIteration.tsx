@@ -286,6 +286,13 @@ export function S7_WhirIteration() {
         down to 2.
       </p>
       <IterationWalkthrough />
+      <p className="my-4">
+        This walkthrough used just 8 evaluation points for clarity. In
+        leanMultisig (<InlineMath tex="m = 25" />), the same process
+        shrinks <InlineMath tex="2^{25} \approx 33" /> million evaluations down to
+        just <InlineMath tex="2^3 = 8" /> evaluations in 4 iterations — producing a proof that
+        the verifier can check in under a millisecond.
+      </p>
     </Section>
   );
 }
@@ -304,7 +311,7 @@ const WALK_STEPS = [
   { label: 'Iteration 2: OOD probe', desc: 'Another surprise evaluation outside the new domain.' },
   { label: 'Iteration 2: Shift queries', desc: 'Spot-check fold consistency on the smaller domain.' },
   { label: 'Iteration 2: Complete', desc: 'Only 2 points remain — small enough for the verifier to check directly.' },
-  { label: 'Finish!', desc: 'The verifier is convinced the prover\'s trace is valid — without ever reading the full table.' },
+  { label: 'Finish!', desc: 'The polynomial is small enough to read directly. The verifier replays all sumcheck transcripts, checks OOD answers, verifies shift queries, and confirms the final evaluation — all without ever reading the full table.' },
 ];
 
 function IterationWalkthrough() {
@@ -343,32 +350,41 @@ function IterationWalkthrough() {
   const circleRAfter = step < 5 ? 60 : step < 10 ? 40 : 40;
 
   const renderCanvas = () => {
-    // Finish step
-    if (step === 11) return (
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="mx-auto block">
-        <motion.circle
-          cx={CX} cy={CY} r={20}
-          fill="#2f855a"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-        />
-        <motion.text
-          x={CX} y={CY + 5}
-          textAnchor="middle" fontSize="16" fill="white" fontFamily="monospace" fontWeight="bold"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >✓</motion.text>
-        <motion.text
-          x={CX} y={CY + 45}
-          textAnchor="middle" fontSize="14" fill="#2f855a" fontFamily="monospace"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-        >Proof verified</motion.text>
-      </svg>
-    );
+    // Finish step: show original and final circles side by side
+    if (step === 11) {
+      const bigR = 60;
+      const smallR = 24;
+      const circleY = 80;
+      const bigCX = CX - 60;
+      const smallCX = CX + 60;
+      const bigPts = dots(8, bigR, bigCX, circleY);
+      const smallPts = dots(2, smallR, smallCX, circleY);
+      return (
+        <svg width={W} height={180} viewBox={`0 0 ${W} 180`} className="mx-auto block">
+          {/* Original 8-point circle (faded) */}
+          <circle cx={bigCX} cy={circleY} r={bigR} fill="#fefdfb" stroke="#1a365d" strokeWidth={1.5} strokeOpacity={0.3} />
+          {bigPts.map((p, i) => (
+            <circle key={`big-${i}`} cx={p.x} cy={p.y} r={3} fill="#1a365d" fillOpacity={0.15} />
+          ))}
+          <text x={bigCX} y={circleY + bigR + 14} textAnchor="middle" fontSize="9" fill="#6b6375" fontFamily="monospace" fillOpacity={0.5}>
+            8 points
+          </text>
+
+          {/* Arrow */}
+          <line x1={bigCX + bigR + 6} y1={circleY} x2={smallCX - smallR - 10} y2={circleY} stroke="#6b6375" strokeWidth={1.5} />
+          <polygon points={`${smallCX - smallR - 10},${circleY - 4} ${smallCX - smallR - 2},${circleY} ${smallCX - smallR - 10},${circleY + 4}`} fill="#6b6375" />
+
+          {/* Final 2-point circle */}
+          <circle cx={smallCX} cy={circleY} r={smallR} fill="#fefdfb" stroke="#2f855a" strokeWidth={2} />
+          {smallPts.map((p, i) => (
+            <circle key={`small-${i}`} cx={p.x} cy={p.y} r={4} fill="#2f855a" fillOpacity={0.5} />
+          ))}
+          <text x={smallCX} y={circleY + smallR + 14} textAnchor="middle" fontSize="9" fill="#2f855a" fontFamily="monospace">
+            2 points (base case)
+          </text>
+        </svg>
+      );
+    }
 
     const phase = step < 5 ? step : step < 10 ? step - 5 : step - 10;
 
