@@ -1,24 +1,16 @@
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { Section } from '../components/Section';
 import { Math as InlineMath } from '../components/MathBlock';
-import { Button } from '../components/ui/Button';
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from 'recharts';
-import {
-  benchmarks100bit,
-  benchmarks128bit,
-  queryComplexityFormulas,
-} from '../data/benchmarks';
-
-type Metric = 'proofSize' | 'verifierTime' | 'proverTime';
+import { queryComplexityFormulas } from '../data/benchmarks';
 
 const PROTOCOL_COLORS: Record<string, string> = {
   WHIR: '#8b4513',
@@ -27,80 +19,78 @@ const PROTOCOL_COLORS: Record<string, string> = {
   BaseFold: '#6b6375',
 };
 
-const metricConfig: Record<
-  Metric,
-  { label: string; unit: string; key: keyof typeof benchmarks100bit[0]; formatter: (v: number) => string }
-> = {
-  proofSize: {
-    label: 'Proof Size',
-    unit: 'KiB',
-    key: 'proofSizeKB',
-    formatter: (v: number) => `${v} KiB`,
-  },
-  verifierTime: {
-    label: 'Verifier Time',
-    unit: '\u00b5s',
-    key: 'verifierTimeUs',
-    formatter: (v: number) => `${v} \u00b5s`,
-  },
-  proverTime: {
-    label: 'Prover Time',
-    unit: 's',
-    key: 'proverTimeS',
-    formatter: (v: number) => `${v} s`,
-  },
-};
-
 export function S9_Performance() {
-  const [securityBits, setSecurityBits] = useState<100 | 128>(100);
-  const [activeMetric, setActiveMetric] = useState<Metric>('verifierTime');
-
-  const benchmarks = securityBits === 100 ? benchmarks100bit : benchmarks128bit;
-
-  const chartData = useMemo(() => {
-    const cfg = metricConfig[activeMetric];
-    return benchmarks.map((b) => ({
-      name: b.protocol,
-      value: b[cfg.key] as number,
-      fill: PROTOCOL_COLORS[b.protocol] || '#6b6375',
-    }));
-  }, [benchmarks, activeMetric]);
-
-  const cfg = metricConfig[activeMetric];
-
   return (
     <Section
       id="why-fast"
       number={8}
-      title="Why WHIR is Fast"
-      subtitle="Concrete performance numbers and comparison with FRI, STIR, and BaseFold."
+      title="Summary"
+      subtitle="What makes WHIR different, and where to go from here."
     >
       <h3 id="why-fast-overview" className="font-heading text-xl font-semibold text-text mb-3">
-        Overview
+        What We Covered
       </h3>
       <p>
-        LeanMultisig chose WHIR specifically because of its verification speed. For recursive
-        aggregation, the WHIR verifier runs <em>inside</em> the next proof — so every
-        microsecond of verification time multiplies across recursion levels. WHIR
-        achieves the <strong>fastest verification time</strong> among comparable proximity
-        testing protocols: ~400{'\u00b5'}s at 100-bit security vs FRI's ~1.5ms, meaning the
-        recursive circuit is roughly 4x smaller. Its key advantage is that the verifier's
-        work is dominated by reading the proof and hashing — there is very little algebraic
-        computation. On-chain, WHIR's low query complexity means fewer Merkle path
-        openings and lower gas costs for Ethereum validators.
+        This visualizer walked through the building blocks of WHIR — from
+        Reed-Solomon codes and constrained polynomials, through sumcheck and
+        folding, to the full protocol loop. Here's what each piece contributes:
+      </p>
+      <ul className="list-disc ml-6 my-4 space-y-2">
+        <li>
+          <strong>Reed-Solomon codes</strong> (Section 2) — encode the trace as a
+          polynomial with redundancy, making tampering detectable via random
+          sampling.
+        </li>
+        <li>
+          <strong>Constrained Reed-Solomon codes</strong> (Section 3) — add a
+          constraint on top: the polynomial must satisfy an equation at every row,
+          not just be low-degree.
+        </li>
+        <li>
+          <strong>Sumcheck</strong> (Section 4) — collapses the constraint check
+          across all rows into a single evaluation, without reading each row.
+        </li>
+        <li>
+          <strong>Folding</strong> (Section 5) — shrinks the committed polynomial
+          onto a half-sized domain using randomness from sumcheck.
+        </li>
+        <li>
+          <strong>The WHIR protocol</strong> (Section 6) — glues sumcheck, folding,
+          OOD probes, and shift queries into one recursive iteration that halves the
+          problem each time.
+        </li>
+        <li>
+          <strong>Tuning the protocol</strong> (Section 7) — the folding
+          parameter <InlineMath tex="k" />, code rate <InlineMath tex="\rho" />, and
+          query count <InlineMath tex="t" /> jointly determine security, proof size,
+          and performance.
+        </li>
+      </ul>
+
+      <h3 id="why-whir" className="font-heading text-xl font-semibold text-text mt-10 mb-3">
+        Why WHIR
+      </h3>
+      <p>
+        WHIR's core advantage is its <strong>low verification complexity</strong>: the
+        total verifier work is <InlineMath tex="O(\lambda / \log(1/\rho))" />,
+        which is <strong>independent of the codeword
+        length <InlineMath tex="n" /></strong>. This is what "super-fast
+        verification" means — as the polynomial grows, the verifier doesn't slow
+        down.
       </p>
 
       <div className="bg-bg-card border border-border rounded-lg p-5 my-6">
         <h4 className="font-heading font-semibold text-base text-text mb-3">
-          Query complexity comparison
+          Verification complexity comparison
         </h4>
         <p className="text-sm text-text-muted mb-3">
-          The number of queries the verifier makes determines both proof size and verification
-          time. Here <InlineMath tex="\lambda" /> is the security parameter and{' '}
-          <InlineMath tex="n" /> is the codeword length:
+          Total verifier work (hash operations) across all rounds. Here{' '}
+          <InlineMath tex="\lambda" /> is the security parameter,{' '}
+          <InlineMath tex="\rho" /> is the code rate, and{' '}
+          <InlineMath tex="n" /> is the codeword length.
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Object.entries(queryComplexityFormulas).map(([protocol, formula]) => (
+          {queryComplexityFormulas.map(([protocol, formula]) => (
             <div
               key={protocol}
               className="bg-bg rounded-md border border-border-light p-3 text-center"
@@ -115,197 +105,159 @@ export function S9_Performance() {
             </div>
           ))}
         </div>
-      </div>
 
-      <h3 id="benchmark-comparison" className="font-heading text-xl font-semibold text-text mt-10 mb-4">
-        Benchmark Comparison
-      </h3>
-      <p className="mb-4">
-        These benchmarks show why leanMultisig uses WHIR rather than FRI or BaseFold.
-        Measured for degree <InlineMath tex="2^{22}" /> polynomials at rate{' '}
-        <InlineMath tex="\rho = 1/2" />. Data from the WHIR paper (Section 8).
-      </p>
-
-      <div className="bg-bg-card border border-border rounded-lg p-5 space-y-4">
-        {/* Security toggle */}
-        <div className="flex items-center gap-2 justify-center">
-          <span className="text-sm text-text-muted">Security level:</span>
-          <Button
-            variant={securityBits === 100 ? 'primary' : 'ghost'}
-            onClick={() => setSecurityBits(100)}
-          >
-            100-bit
-          </Button>
-          <Button
-            variant={securityBits === 128 ? 'primary' : 'ghost'}
-            onClick={() => setSecurityBits(128)}
-          >
-            128-bit
-          </Button>
-        </div>
-
-        {/* Metric tabs */}
-        <div className="flex items-center gap-2 justify-center flex-wrap">
-          {(Object.keys(metricConfig) as Metric[]).map((m) => (
-            <Button
-              key={m}
-              variant={activeMetric === m ? 'secondary' : 'ghost'}
-              onClick={() => setActiveMetric(m)}
+        {/* Verification complexity chart */}
+        <div className="mt-4">
+          <p className="text-xs text-text-muted mb-2 text-center">
+            Verification cost vs codeword length (<InlineMath tex="\lambda = 100" />,{' '}
+            <InlineMath tex="\rho = 1/2" />). BaseFold excluded (linear in{' '}
+            <InlineMath tex="n" />, off the chart).
+          </p>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart
+              data={(() => {
+                const pts: Record<string, number>[] = [];
+                for (let logN = 10; logN <= 28; logN += 1) {
+                  const lambda = 100;
+                  const logInvRho = 1;
+                  pts.push({
+                    logN,
+                    WHIR: lambda / logInvRho,
+                    FRI: lambda * logN * logN / logInvRho,
+                    STIR: lambda * logN,
+                  });
+                }
+                return pts;
+              })()}
+              margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
             >
-              {metricConfig[m].label}
-            </Button>
-          ))}
-        </div>
-
-        {/* Chart */}
-        <motion.div
-          key={`${securityBits}-${activeMetric}`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="w-full h-[300px]"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0dcd4" />
+              <CartesianGrid stroke="#e7e3d9" strokeDasharray="3 3" />
               <XAxis
-                dataKey="name"
-                tick={{ fontSize: 12, fill: '#2c2c2c' }}
-                axisLine={{ stroke: '#e0dcd4' }}
+                dataKey="logN"
+                type="number"
+                domain={[10, 28]}
+                ticks={[10, 14, 18, 22, 26]}
+                tickFormatter={(v: number) => `2${String.fromCodePoint(...[...`${v}`].map(c => '⁰¹²³⁴⁵⁶⁷⁸⁹'.charCodeAt(Number(c))))}`}
+                stroke="#6b6375"
+                fontSize={11}
+                label={{ value: 'codeword length (n)', position: 'insideBottomRight', offset: -5, fontSize: 10, fill: '#6b6375' }}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#6b6375' }}
-                axisLine={{ stroke: '#e0dcd4' }}
-                label={{
-                  value: cfg.unit,
-                  angle: -90,
-                  position: 'insideLeft',
-                  style: { fontSize: 11, fill: '#6b6375' },
-                }}
+                type="number"
+                stroke="#6b6375"
+                fontSize={11}
+                label={{ value: 'hash ops', angle: -90, position: 'insideLeft', offset: 0, fontSize: 10, fill: '#6b6375' }}
               />
               <Tooltip
-                formatter={(value) => {
-                  if (typeof value !== 'number') return [String(value), ''];
-                  return [cfg.formatter(value), cfg.label];
-                }}
-                contentStyle={{
-                  backgroundColor: '#fefdfb',
-                  border: '1px solid #e0dcd4',
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
+                contentStyle={{ fontSize: 11, fontFamily: 'monospace' }}
+                formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                labelFormatter={(logN: number) => `n = 2^${logN}`}
               />
-              <Bar
-                dataKey="value"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={60}
-              >
-                {chartData.map((entry, index) => (
-                  <motion.rect
-                    key={index}
-                    fill={entry.fill}
-                    initial={{ scaleY: 0 }}
-                    animate={{ scaleY: 1 }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="WHIR" stroke="#8b4513" strokeWidth={3} dot={false} />
+              <Line type="monotone" dataKey="FRI" stroke="#1a365d" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="STIR" stroke="#c53030" strokeWidth={2} dot={false} strokeDasharray="6 3" />
+            </LineChart>
           </ResponsiveContainer>
-        </motion.div>
-
-        {/* Data table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-center border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-2 px-3 text-text-muted font-medium text-left">Protocol</th>
-                <th className="py-2 px-3 text-text-muted font-medium">Proof Size (KiB)</th>
-                <th className="py-2 px-3 text-text-muted font-medium">Verifier ({'\u00b5'}s)</th>
-                <th className="py-2 px-3 text-text-muted font-medium">Prover (s)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {benchmarks.map((b) => (
-                <tr
-                  key={b.protocol}
-                  className={`border-b border-border-light ${
-                    b.protocol === 'WHIR' ? 'bg-sienna/5' : ''
-                  }`}
-                >
-                  <td
-                    className="py-2 px-3 font-semibold text-left"
-                    style={{ color: PROTOCOL_COLORS[b.protocol] }}
-                  >
-                    {b.protocol}
-                  </td>
-                  <td className="py-2 px-3 font-mono">{b.proofSizeKB}</td>
-                  <td className="py-2 px-3 font-mono">{b.verifierTimeUs}</td>
-                  <td className="py-2 px-3 font-mono">{b.proverTimeS}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
 
-      {/* Key takeaways */}
+      <p>
+        This matters for leanMultisig because the WHIR verifier runs{' '}
+        <em>inside</em> the next recursive proof — every microsecond of
+        verification time multiplies across the aggregation tree. A faster
+        verifier means a smaller recursive circuit, which means cheaper proofs
+        at every level.
+      </p>
+
       <h3 id="key-takeaways" className="font-heading text-xl font-semibold text-text mt-10 mb-4">
-        Key Takeaways
+        Key Properties
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <div className="text-sienna font-heading font-semibold text-sm mb-2">
-            Fastest Verification
+            ⚡ Super-fast verification
           </div>
           <p className="text-sm text-text-muted">
-            WHIR verification takes approximately <strong>400{'\u00b5'}s</strong> at 100-bit
-            security — roughly 4x faster than FRI and 2x faster than STIR. This enables
-            efficient recursive aggregation in leanMultisig: each level of the aggregation tree
-            runs the verifier inside the next proof, so faster verification directly shrinks
-            the recursive circuit.
+            Verification time is independent of the polynomial size — it depends
+            only on the security parameter and code rate. For leanMultisig, this
+            means sub-millisecond verification regardless of trace length.
           </p>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <div className="text-navy font-heading font-semibold text-sm mb-2">
-            Compact Proofs
+            🔓 No trusted setup
           </div>
           <p className="text-sm text-text-muted">
-            Proof sizes are comparable to STIR (76 KiB at 100-bit security) and
-            significantly smaller than FRI (149 KiB) and BaseFold (564 KiB). For leanMultisig,
-            smaller proofs mean less on-chain data for Ethereum validators to process,
-            reducing calldata costs in the aggregation contract.
+            WHIR is hash-based — no trusted setup ceremony, no pairing-friendly
+            curves. Security depends only on the collision resistance of the hash
+            function.
+          </p>
+        </div>
+        <div className="bg-bg-card border border-border rounded-lg p-4">
+          <div className="text-navy font-heading font-semibold text-sm mb-2">
+            🛡️ Post-quantum secure
+          </div>
+          <p className="text-sm text-text-muted">
+            Because WHIR relies only on hash functions (no elliptic curves or
+            pairings), it inherits post-quantum security — the same trust model
+            as leanSig's hash-based signatures. The entire leanMultisig stack, from
+            signatures to proof aggregation, is quantum-resistant.
           </p>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <div className="text-green font-heading font-semibold text-sm mb-2">
-            No Trusted Setup
+            📐 Native multilinear support
           </div>
           <p className="text-sm text-text-muted">
-            WHIR is hash-based — it requires no trusted setup ceremony and no
-            pairing-friendly curves. This gives leanMultisig the same trust model as its
-            leanSig post-quantum signatures: security depends only on the collision
-            resistance of the hash function, making the entire system post-quantum secure.
+            WHIR works directly with multilinear polynomials, allowing
+            leanMultisig to stack multiple table columns (execution, Poseidon,
+            extension ops) into one committed polynomial with no overhead from
+            univariate conversions.
           </p>
         </div>
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <div className="text-text font-heading font-semibold text-sm mb-2">
-            Native Multilinear Support
+            🎛️ Tunable parameters
           </div>
           <p className="text-sm text-text-muted">
-            WHIR works natively with multilinear polynomials, which allows leanMultisig's simple
-            stacking approach: multiple table polynomials (execution, Poseidon, extension ops)
-            are concatenated into one and committed via a single WHIR instance — no overhead
-            from univariate FFT commitment schemes.
+            The folding parameter <InlineMath tex="k" />, code
+            rate <InlineMath tex="\rho" />, and query count <InlineMath tex="t" /> can
+            be jointly optimized for the deployment target — whether that's
+            minimizing on-chain gas or maximizing prover throughput.
           </p>
         </div>
       </div>
 
-      <p className="mt-8 text-sm text-text-muted text-center italic">
-        WHIR combines the sumcheck protocol with RS code folding to achieve the best known
-        verification complexity for IOPs of proximity:{' '}
-        <InlineMath tex="O(\lambda + \log n)" /> queries per iteration.
-      </p>
+      <h3 className="font-heading text-xl font-semibold text-text mt-10 mb-3">
+        Further Reading
+      </h3>
+      <ul className="list-disc ml-6 space-y-2">
+        <li>
+          <a href="https://eprint.iacr.org/2024/1586" target="_blank" rel="noopener noreferrer" className="underline hover:text-sienna">
+            WHIR paper
+          </a> — Gal Arnon, Alessandro Chiesa, Giacomo Fenzi, Eylon Yogev.
+          Section 8 contains detailed benchmarks comparing WHIR, FRI, STIR,
+          and BaseFold under various configurations.
+        </li>
+        <li>
+          <a href="https://eprint.iacr.org/2024/390" target="_blank" rel="noopener noreferrer" className="underline hover:text-sienna">
+            STIR paper
+          </a> — the predecessor that introduced out-of-domain sampling and
+          rate-shifting for RS proximity testing.
+        </li>
+        <li>
+          <a href="https://github.com/leanEthereum/leanMultisig" target="_blank" rel="noopener noreferrer" className="underline hover:text-sienna">
+            leanMultisig
+          </a> — source code and spec for the minimal zkVM that uses WHIR for
+          post-quantum signature aggregation on Ethereum.
+        </li>
+        <li>
+          <a href="https://gfenzi.io/papers/whir/" target="_blank" rel="noopener noreferrer" className="underline hover:text-sienna">
+            Giacomo Fenzi's WHIR blog post
+          </a> — an accessible deep-dive by one of the WHIR authors.
+        </li>
+      </ul>
     </Section>
   );
 }

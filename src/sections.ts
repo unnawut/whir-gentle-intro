@@ -4,6 +4,8 @@ export const SECTIONS = [
     label: 'About',
     subs: [
       { label: 'About This Visualizer', id: 'about-this-visualizer' },
+      { label: 'The Papers', id: 'the-papers' },
+      { label: 'Simplifications', id: 'simplifications' },
       { label: 'How the Demos Work', id: 'how-demos-work' },
     ],
   },
@@ -69,16 +71,16 @@ export const SECTIONS = [
       { label: 'The k Tradeoff', id: 'k-tradeoff' },
       { label: 'Queries per Round', id: 'queries-per-round' },
       { label: 'Code Rate', id: 'code-rate' },
-      { label: 'Interactive Funnel', id: 'funnel-visualization' },
+      { label: 'Parameter Explorer', id: 'funnel-visualization' },
     ],
   },
   {
     id: 'why-fast',
-    label: 'Why WHIR is Fast',
+    label: 'Summary',
     subs: [
-      { label: 'Overview', id: 'why-fast-overview' },
-      { label: 'Benchmark Comparison', id: 'benchmark-comparison' },
-      { label: 'Key Takeaways', id: 'key-takeaways' },
+      { label: 'What We Covered', id: 'why-fast-overview' },
+      { label: 'Why WHIR', id: 'why-whir' },
+      { label: 'Key Properties', id: 'key-takeaways' },
     ],
   },
 ];

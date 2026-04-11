@@ -67,9 +67,9 @@ export function S8_RecursiveStructure() {
   // Same as proofEstimate (t × merkle_depth per iteration, summed).
   const verifierHashes = proofEstimate;
 
-  // Rough time: ~15ns per hash (optimized Poseidon over KoalaBear with SIMD)
-  // Calibrated to match leanMultisig's reported ~1s proving time
-  const NS_PER_HASH = 15;
+  // Rough time: ~12ns per hash (optimized Poseidon over KoalaBear with SIMD)
+  // Calibrated to match leanMultisig's reported ~0.8s proving time
+  const NS_PER_HASH = 12;
   const formatTime = (hashes: number) => {
     const ns = hashes * NS_PER_HASH;
     if (ns < 1_000) return `${ns} ns`;
@@ -85,7 +85,7 @@ export function S8_RecursiveStructure() {
       id="full-protocol"
       number={7}
       title="Tuning the Protocol"
-      subtitle="How the folding parameter k shapes the number of iterations and the proof tradeoffs."
+      subtitle="How the folding parameter, code rate, and query count shape security, proof size, and performance."
     >
       <h3 id="full-protocol-overview" className="font-heading text-xl font-semibold text-text mb-3">
         Overview
@@ -165,8 +165,8 @@ export function S8_RecursiveStructure() {
       <p className="my-4">
         This connects back to <InlineMath tex="k" />: larger <InlineMath tex="k" /> gives
         the cheating prover more room to hide (worse <InlineMath tex="\varepsilon" />),
-        so more queries are needed to compensate. The total proof size is roughly
-        <InlineMath tex="t \times" /> (Merkle path length) per iteration —
+        so more queries are needed to compensate. The total proof size is
+        roughly <InlineMath tex="t \times \text{(Merkle path length)}" /> per iteration —
         a direct tradeoff between security and proof size.
       </p>
 
@@ -189,22 +189,22 @@ export function S8_RecursiveStructure() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
         <div className="bg-bg-card border border-border rounded-lg p-4">
           <div className="font-heading font-semibold text-sm text-text mb-2">
-            Lower rate (e.g. 1/4)
-          </div>
-          <ul className="text-sm text-text-muted space-y-1 list-disc list-inside">
-            <li>More redundancy — each query is more powerful</li>
-            <li>Fewer queries needed for the same security</li>
-            <li>Larger domain — heavier prover, bigger Merkle tree</li>
-          </ul>
-        </div>
-        <div className="bg-bg-card border border-border rounded-lg p-4">
-          <div className="font-heading font-semibold text-sm text-text mb-2">
             Higher rate (e.g. 1/2)
           </div>
           <ul className="text-sm text-text-muted space-y-1 list-disc list-inside">
             <li>Less redundancy — each query catches less</li>
             <li>More queries needed for the same security</li>
             <li>Smaller domain — lighter prover, faster commitment</li>
+          </ul>
+        </div>
+        <div className="bg-bg-card border border-border rounded-lg p-4">
+          <div className="font-heading font-semibold text-sm text-text mb-2">
+            Lower rate (e.g. 1/4)
+          </div>
+          <ul className="text-sm text-text-muted space-y-1 list-disc list-inside">
+            <li>More redundancy — each query is more powerful</li>
+            <li>Fewer queries needed for the same security</li>
+            <li>Larger domain — heavier prover, bigger Merkle tree</li>
           </ul>
         </div>
       </div>
@@ -218,7 +218,7 @@ export function S8_RecursiveStructure() {
       </p>
 
       <h3 id="funnel-visualization" className="font-heading text-xl font-semibold text-text mt-10 mb-4">
-        Interactive Funnel
+        Parameter Explorer
       </h3>
       <p className="mb-4">
         Adjust the three parameters to see how they interact, using{' '}
@@ -278,8 +278,8 @@ export function S8_RecursiveStructure() {
         {/* Metric bars — normalized horizontal bars for each output */}
         {(() => {
           const proofBytes = proofEstimate * 32;
-          const proveMs = proverHashes * 0.0001; // 100ns per hash → ms
-          const verifyMs = verifierHashes * 0.0001;
+          const proveMs = proverHashes * NS_PER_HASH / 1e6; // ns → ms
+          const verifyMs = verifierHashes * NS_PER_HASH / 1e6;
           const metrics = [
             {
               label: 'Security',
@@ -304,9 +304,9 @@ export function S8_RecursiveStructure() {
                 ? `${(proofBytes / 1024).toFixed(1)} KB`
                 : `${proofBytes} B`,
               sub: `${proofEstimate.toLocaleString()} hashes × 32B`,
-              // Log scale: 1KB=0.1, 100KB=0.5, 10MB=1
-              pct: Math.min(Math.log10(Math.max(proofBytes, 1)) / 7, 1),
-              color: proofBytes < 100 * 1024 ? '#2f855a' : proofBytes < 1024 * 1024 ? '#1a365d' : '#c53030',
+              // Log scale: 1KB=0.05, 256KB=0.5, 10MB=1
+              pct: Math.min(Math.max((Math.log10(Math.max(proofBytes, 1)) - 3) / 4, 0.08), 1),
+              color: proofBytes < 256 * 1024 ? '#2f855a' : proofBytes < 512 * 1024 ? '#1a365d' : '#c53030',
             },
             {
               label: 'Proving time',
@@ -314,7 +314,7 @@ export function S8_RecursiveStructure() {
               sub: `~${(proverHashes / 1e6).toFixed(1)}M hashes`,
               // Log scale calibrated for m=25: ~1s (best) to ~100s (worst with high rate)
               pct: Math.min(Math.max((Math.log10(Math.max(proveMs, 1)) - 2) / 3, 0.05), 1),
-              color: proveMs < 2000 ? '#2f855a' : proveMs < 10000 ? '#1a365d' : '#c53030',
+              color: proveMs < 1000 ? '#2f855a' : '#c53030',
             },
             {
               label: 'Verification time',
@@ -355,8 +355,8 @@ export function S8_RecursiveStructure() {
           <ul className="list-disc ml-4 space-y-0.5">
             <li><strong>Security:</strong> <InlineMath tex="\lambda \approx t \times \log_2(1/\rho) - \log_2(\lceil m/k \rceil)" />. Each query gives ~<InlineMath tex="\log_2(1/\rho)" /> bits of security, minus a union bound over iterations. Real WHIR uses the Johnson Bound for tighter analysis.</li>
             <li><strong>Proof size:</strong> <InlineMath tex="t \times \text{(Merkle depth per iteration)}" /> summed across iterations, at 32 bytes per hash. Excludes sumcheck polynomials and other small prover messages.</li>
-            <li><strong>Proving time:</strong> modeled as Merkle tree construction (<InlineMath tex="\sim 2^{m + \log_2(1/\rho)}" /> hashes for the first iteration). Uses ~15ns effective cost per hash operation, calibrated to match leanMultisig's reported ~1s total proving time on modern x86-64 hardware (AVX-512/SIMD, multi-threaded, e.g. AMD EPYC or Intel Xeon). This effective rate absorbs NTT, sumcheck, folding, and field arithmetic into the hash cost.</li>
-            <li><strong>Verification time:</strong> <InlineMath tex="t \times \text{(Merkle depth)}" /> hash checks per iteration, same ~15ns effective cost. Verification is single-threaded and memory-light — representative of commodity hardware (laptop or server).</li>
+            <li><strong>Proving time:</strong> modeled as Merkle tree construction (<InlineMath tex="\sim 2^{m + \log_2(1/\rho)}" /> hashes for the first iteration). Uses ~12ns effective cost per hash operation, calibrated to match leanMultisig's reported ~0.8s total proving time on modern x86-64 hardware (AVX-512/SIMD, multi-threaded, e.g. AMD EPYC or Intel Xeon). This effective rate absorbs NTT, sumcheck, folding, and field arithmetic into the hash cost.</li>
+            <li><strong>Verification time:</strong> <InlineMath tex="t \times \text{(Merkle depth)}" /> hash checks per iteration, same ~12ns effective cost. Verification is single-threaded and memory-light — representative of commodity hardware (laptop or server).</li>
             <li><strong>leanMultisig preset:</strong> Uses k=7 initial / k=5 subsequent (simplified to k=7 here), ρ=1/2 for leaf proofs, 123-bit hash security with 18-bit proof-of-work grinding giving ~105-bit effective query security. Queries are computed dynamically via the Johnson Bound, not hardcoded.</li>
           </ul>
         </div>

@@ -100,17 +100,18 @@ export const allBenchmarks: BenchmarkEntry[] = [
 ];
 
 /**
- * Query complexity formulas for each protocol, as display strings.
+ * Total verification hash complexity for each protocol.
  *
- * These describe the number of queries the verifier makes per iteration
- * as a function of security parameter lambda, rate rho, and other parameters.
+ * This is the total verifier work (in hash operations) across all rounds,
+ * as a function of security parameter λ, rate ρ, and codeword length n.
+ * WHIR's key claim: verification time is independent of n.
  */
-export const queryComplexityFormulas: Record<string, string> = {
-  WHIR: 'O(lambda / log(1/rho))',
-  FRI: 'O(lambda / log(1/rho))',
-  STIR: 'O(lambda / log(n))',
-  BaseFold: 'O(lambda)',
-};
+export const queryComplexityFormulas: [string, string][] = [
+  ['WHIR', 'O(λ / log(1/ρ))'],
+  ['STIR', 'O(λ · log(n))'],
+  ['FRI', 'O(λ · log²n / log(1/ρ))'],
+  ['BaseFold', 'O(λ · n)'],
+];
 
 /**
  * Proof size scaling formulas for display.
