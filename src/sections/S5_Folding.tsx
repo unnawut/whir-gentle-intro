@@ -460,11 +460,8 @@ export function S5_Folding() {
 }
 
 function DegreeProbe() {
-  // 3 evaluations of the line f(x) = x + 1 in F_17.
-  // (The size-3 subgroup doesn't exist in F_17, so we use 3 hand-picked points.)
   const xs = useMemo(() => [3, 7, 13], []);
   const honest = useMemo(() => xs.map((x) => (x + 1) % 17), [xs]);
-  // One slider per point. Default: each value equals its honest value (no tamper).
   const [values, setValues] = useState<number[]>(() => honest.slice());
 
   const evals = values;
@@ -472,7 +469,6 @@ function DegreeProbe() {
   const deg = Math.max(0, degree(poly));
   const ok = deg <= 1;
 
-  // Render the polynomial as a TeX string, normalizing coefficients to [0, 16].
   const polyTex = useMemo(() => {
     const parts: string[] = [];
     for (let i = 0; i <= deg; i++) {
@@ -487,8 +483,6 @@ function DegreeProbe() {
     return parts.length === 0 ? '0' : parts.join(' + ');
   }, [poly, deg]);
 
-  // Sample the interpolated polynomial at the 17 integer points of F_17 only —
-  // fractional x has no meaning in a finite field.
   const curve = useMemo(() => {
     const pts: { x: number; y: number }[] = [];
     for (let t = 0; t <= 14; t++) {
@@ -509,62 +503,19 @@ function DegreeProbe() {
 
   return (
     <div className="bg-bg-card border border-border rounded-lg p-4 my-4">
-      <div className="flex items-center justify-between mb-2 text-xs">
-        <span className="font-semibold text-text">
-          <InlineMath tex={`f(x) = ${polyTex}`} /> sampled at 3 points in{' '}
-          <InlineMath tex="\mathbb{F}_{17}" />
-        </span>
-        <span className="font-mono">
-          polynomial degree ={' '}
-          <span className={ok ? 'text-green font-bold' : 'text-red font-bold'}>{deg}</span>
-        </span>
-      </div>
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
           <CartesianGrid stroke="#e7e3d9" strokeDasharray="3 3" />
-          <XAxis
-            type="number"
-            dataKey="x"
-            domain={[0, 14]}
-            ticks={[0, 4, 8, 12, 14]}
-            stroke="#6b6375"
-            fontSize={11}
-          />
-          <YAxis
-            type="number"
-            dataKey="y"
-            domain={[0, 15]}
-            ticks={[0, 5, 10, 15]}
-            stroke="#6b6375"
-            fontSize={11}
-          />
-          <Line
-            type="linear"
-            data={curve}
-            dataKey="y"
-            stroke={ok ? '#1a365d' : '#c53030'}
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-            xAxisId={0}
-            yAxisId={0}
-          />
+          <XAxis type="number" dataKey="x" domain={[0, 14]} ticks={[0, 4, 8, 12, 14]} stroke="#6b6375" fontSize={11} />
+          <YAxis type="number" dataKey="y" domain={[0, 15]} ticks={[0, 5, 10, 15]} stroke="#6b6375" fontSize={11} />
+          <Line type="linear" data={curve} dataKey="y" stroke={ok ? '#1a365d' : '#c53030'} strokeWidth={2} dot={false} isAnimationActive={false} xAxisId={0} yAxisId={0} />
           <Scatter
             data={points.map((p) => ({ x: p.x, y: p.evals, tampered: p.tampered }))}
-            xAxisId={0}
-            yAxisId={0}
+            xAxisId={0} yAxisId={0}
             shape={(props: { cx?: number; cy?: number; payload?: { tampered: boolean } }) => (
-              <circle
-                cx={props.cx}
-                cy={props.cy}
-                r={8}
-                fill={props.payload?.tampered ? '#c53030' : '#1a365d'}
-                stroke="#fefdfb"
-                strokeWidth={3}
-              />
+              <circle cx={props.cx} cy={props.cy} r={8} fill={props.payload?.tampered ? '#c53030' : '#1a365d'} stroke="#fefdfb" strokeWidth={3} />
             )}
-            legendType="none"
-            isAnimationActive={false}
+            legendType="none" isAnimationActive={false}
           />
         </ComposedChart>
       </ResponsiveContainer>
@@ -573,46 +524,37 @@ function DegreeProbe() {
           <div className="flex items-center gap-2 text-sm">
             <label className="text-text font-medium">f(7) =</label>
             <span className="text-text-muted font-mono text-xs tabular-nums">
-              {values[1] === honest[1] ? (
-                values[1]
-              ) : (
-                <>
-                  <span className="text-text-muted/50 line-through mr-1">{honest[1]}</span>
-                  <span className="text-red">{values[1]}</span>
-                </>
+              {values[1] === honest[1] ? values[1] : (
+                <><span className="text-text-muted/50 line-through mr-1">{honest[1]}</span><span className="text-red">{values[1]}</span></>
               )}
             </span>
           </div>
           <input
-            type="range"
-            min={0}
-            max={16}
-            value={values[1]}
-            onChange={(e) =>
-              setValues((cur) => {
-                const next = cur.slice();
-                next[1] = Number(e.target.value);
-                return next;
-              })
-            }
+            type="range" min={0} max={16} value={values[1]}
+            onChange={(e) => setValues((cur) => { const next = cur.slice(); next[1] = Number(e.target.value); return next; })}
             className="w-full h-1.5 rounded-full bg-border appearance-none cursor-pointer
-                       [&::-webkit-slider-thumb]:appearance-none
-                       [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                       [&::-webkit-slider-thumb]:rounded-full
-                       [&::-webkit-slider-thumb]:bg-text
-                       [&::-webkit-slider-thumb]:shadow-sm
-                       [&::-webkit-slider-thumb]:cursor-pointer
-                       [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4
-                       [&::-moz-range-thumb]:rounded-full
-                       [&::-moz-range-thumb]:bg-text
-                       [&::-moz-range-thumb]:border-0
-                       [&::-moz-range-thumb]:cursor-pointer"
+                       [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-text [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer
+                       [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-text [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
             style={{ accentColor: '#2c2c2c' }}
           />
         </div>
-        <Button variant="secondary" onClick={() => setValues(honest.slice())}>
-          Reset
-        </Button>
+        <Button variant="secondary" onClick={() => setValues(honest.slice())}>Reset</Button>
+      </div>
+      <div className="mt-3 space-y-1 text-base">
+        <div className="flex items-center justify-between">
+          <span className="text-text-muted">
+            Committed polynomial: <InlineMath tex="f(x) = 1 + x" />
+          </span>
+          <span className="font-mono text-text-muted">degree = 1</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className={`font-semibold ${ok ? 'text-text' : 'text-red'}`}>
+            Interpolated polynomial: <InlineMath tex={`f(x) = ${polyTex}`} />
+          </span>
+          <span className={`font-mono ${ok ? '' : 'text-red'}`}>
+            degree = <span className="font-bold">{deg}</span>
+          </span>
+        </div>
       </div>
       <p className="text-xs text-text-muted mt-3">
         The chart is capped at <InlineMath tex="x = 14" /> for simplicity, hiding
