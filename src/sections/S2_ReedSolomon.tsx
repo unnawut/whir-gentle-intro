@@ -69,7 +69,7 @@ const SAMPLE_ORDERS: number[][] = (() => {
 
 function CheatingDemo() {
   const [cheatingCoeffs, setCheatingCoeffs] = useState(1);
-  const [sampleCount, setSampleCount] = useState(3);
+  const [sampleCount, setSampleCount] = useState(1);
   const [sampleSeed, setSampleSeed] = useState(0);
 
   const { corrupted, numCorrupted } = TAMPERED_EVALS[cheatingCoeffs];
@@ -413,8 +413,8 @@ export function S2_ReedSolomon() {
       <p className="mt-3">
         In <strong>LeanMultisig</strong>, the prover evaluates each column polynomial over a domain much
         larger than the execution trace. With a rate of{' '}
-        <InlineMath tex="\rho = 1/2" />, a trace of <InlineMath tex="2^{25}" /> rows means
-        evaluating over <InlineMath tex="2^{26}" /> domain points. If the prover tries to cheat
+        <InlineMath tex="\rho = 1/2" />, a trace of <InlineMath tex="2^{25}" /> (~33 million) rows means
+        evaluating over <InlineMath tex="2^{26}" /> (~67 million) domain points. If the prover tries to cheat
         by sending values that don't correspond to a valid low-degree polynomial, the RS encoding
         guarantees that the corruption is spread across many positions — making it easy for WHIR
         to catch by checking just a tiny random sample.
@@ -435,12 +435,20 @@ export function S2_ReedSolomon() {
 
       <CostComparison traceRows={25} />
 
-      <p className="mt-6 text-sm text-text-muted">
+      <p className="mt-6">
         Reed-Solomon codes are the foundation of proximity testing: instead of checking
         that a function is <em>exactly</em> a low-degree polynomial, protocols like WHIR check
         that it is <em>close</em> to one. This relaxation is what makes sublinear verification
         possible — and it is exactly what allows leanMultisig's verifier to confirm the correctness
         of signature aggregation without re-executing the entire computation.
+      </p>
+      <p className="mt-4">
+        But RS codes alone only guarantee that the data is a valid polynomial — they
+        don't check <em>which</em> polynomial it is. The prover could commit to a
+        perfectly valid low-degree polynomial that has nothing to do with the actual
+        computation. The next section introduces <strong>Constrained Reed-Solomon
+        codes</strong>, which add the missing piece: a constraint that ties the
+        polynomial to the execution trace.
       </p>
     </Section>
   );
