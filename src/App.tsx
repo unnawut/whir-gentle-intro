@@ -90,6 +90,18 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
+  // Scroll to hash anchor after the section renders (for middle-click / deep links)
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (!hash) return
+    // Defer to next tick so the section has mounted and the target id exists
+    const id = window.setTimeout(() => {
+      const el = document.getElementById(hash)
+      if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [page])
+
   const navigateTo = (index: number) => {
     const path = index === 0 ? `${BASE}/` : `${BASE}/${SECTIONS[index].id}`
     window.history.pushState(null, '', path)

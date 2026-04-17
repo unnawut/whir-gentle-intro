@@ -1,10 +1,20 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import { SECTIONS } from '../sections';
 
 interface LayoutProps {
   activePage: number;
   onNavigate: (index: number) => void;
   children: ReactNode;
+}
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+function sectionHref(i: number): string {
+  return i === 0 ? `${BASE}/` : `${BASE}/${SECTIONS[i].id}`;
+}
+
+function isModifiedClick(e: MouseEvent): boolean {
+  return e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
 }
 
 export function Layout({ activePage, onNavigate, children }: LayoutProps) {
@@ -14,16 +24,20 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
     <nav className="flex flex-col gap-0.5">
       {SECTIONS.map(({ id, label, subs }, i) => {
         const isActive = activePage === i;
+        const href = sectionHref(i);
         return (
           <div key={id}>
-            <button
-              onClick={() => {
+            <a
+              href={href}
+              onClick={(e) => {
+                if (isModifiedClick(e)) return;
+                e.preventDefault();
                 onNavigate(i);
                 setMenuOpen(false);
               }}
               className={`
                 cursor-pointer block w-full text-left px-4 py-2 text-sm leading-snug rounded-r-md transition-colors
-                border-l-2
+                border-l-2 no-underline
                 ${
                   isActive
                     ? 'border-sienna text-sienna font-medium bg-sienna/5'
@@ -33,21 +47,24 @@ export function Layout({ activePage, onNavigate, children }: LayoutProps) {
             >
               <span className="text-xs text-text-muted mr-1.5">{i}.</span>
               {label}
-            </button>
+            </a>
             {isActive && subs.length > 0 && (
               <div className="ml-7 border-l border-border-light">
                 {subs.map((sub) => (
-                  <button
+                  <a
                     key={sub.id}
-                    onClick={() => {
+                    href={`${href}#${sub.id}`}
+                    onClick={(e) => {
+                      if (isModifiedClick(e)) return;
+                      e.preventDefault();
                       setMenuOpen(false);
                       const el = document.getElementById(sub.id);
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="cursor-pointer block w-full text-left pl-3 py-1 text-[11px] leading-snug text-text-muted/70 hover:text-sienna transition-colors"
+                    className="cursor-pointer block w-full text-left pl-3 py-1 text-[11px] leading-snug text-text-muted/70 hover:text-sienna transition-colors no-underline"
                   >
                     {sub.label}
-                  </button>
+                  </a>
                 ))}
               </div>
             )}
