@@ -346,8 +346,8 @@ export function S4_Sumcheck() {
               </motion.g>
             ))}
 
-            {/* Column labels for p₁(0) and p₁(1) during step 1 — grouping by X₂ */}
-            {(step === 1 || step === 2 || step === 3) && (
+            {/* Row labels for p₁(0) and p₁(1) — Round 1 results (steps 1 and 2 only) */}
+            {(step === 1 || step === 2) && (
               <>
                 <motion.text
                   x={210}
@@ -376,61 +376,70 @@ export function S4_Sumcheck() {
               </>
             )}
 
-            {/* Row and column headers */}
-            {(step === 1 || step === 2 || step === 3) && (
-              <>
-                {/* Column headers */}
-                <motion.text
-                  x={60}
-                  y={15}
-                  textAnchor="middle"
-                  className="text-[9px]"
-                  fill="#6b6375"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.6 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  X₂=0
-                </motion.text>
-                <motion.text
-                  x={180}
-                  y={15}
-                  textAnchor="middle"
-                  className="text-[9px]"
-                  fill="#6b6375"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.6 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  X₂=1
-                </motion.text>
-                {/* Row headers */}
-                <motion.text
-                  x={22}
-                  y={48}
-                  textAnchor="middle"
-                  className="text-[9px] font-semibold"
-                  fill="#8b4513"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  X₁=0
-                </motion.text>
-                <motion.text
-                  x={22}
-                  y={128}
-                  textAnchor="middle"
-                  className="text-[9px] font-semibold"
-                  fill="#8b4513"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  X₁=1
-                </motion.text>
-              </>
-            )}
+            {/* Row and column headers — highlight the dimension being grouped */}
+            {(step === 1 || step === 2 || step === 3) && (() => {
+              const x2Active = collapsingDim === 1;
+              const colColor = x2Active ? '#8b4513' : '#6b6375';
+              const colOpacity = x2Active ? 1 : 0.6;
+              const colClass = x2Active ? 'text-[9px] font-semibold' : 'text-[9px]';
+              const rowColor = x2Active ? '#6b6375' : '#8b4513';
+              const rowOpacity = x2Active ? 0.6 : 1;
+              const rowClass = x2Active ? 'text-[9px]' : 'text-[9px] font-semibold';
+              return (
+                <>
+                  {/* Column headers (X₂) */}
+                  <motion.text
+                    x={60}
+                    y={15}
+                    textAnchor="middle"
+                    className={colClass}
+                    fill={colColor}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: colOpacity }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    X₂=0
+                  </motion.text>
+                  <motion.text
+                    x={180}
+                    y={15}
+                    textAnchor="middle"
+                    className={colClass}
+                    fill={colColor}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: colOpacity }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    X₂=1
+                  </motion.text>
+                  {/* Row headers (X₁) */}
+                  <motion.text
+                    x={22}
+                    y={48}
+                    textAnchor="middle"
+                    className={rowClass}
+                    fill={rowColor}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: rowOpacity }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    X₁=0
+                  </motion.text>
+                  <motion.text
+                    x={22}
+                    y={128}
+                    textAnchor="middle"
+                    className={rowClass}
+                    fill={rowColor}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: rowOpacity }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    X₁=1
+                  </motion.text>
+                </>
+              );
+            })()}
 
             {/* Round 2 labels: X₁ pinned to α₁, X₂ varies */}
             {step === 4 && (
